@@ -58,22 +58,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 
 # Создаём кнопки
-keyboard = [
-    [
-        InlineKeyboardButton("🧠 Что ты умеешь?", callback_data="about"),
-        InlineKeyboardButton("💎 Купить доступ", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+    keyboard = [
+        [
+            InlineKeyboardButton("🧠 Что ты умеешь?", callback_data="about"),
+            InlineKeyboardButton("💎 Купить доступ", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+        ]
     ]
-]
-reply_markup = InlineKeyboardMarkup(keyboard)
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
 # Отправляем картинку с кнопками
-with open("oracle.jpg", "rb") as photo:
-    await context.bot.send_photo(
-        chat_id=chat_id,
-        photo=photo,
-        caption="👋 Привет! Я — Оракул. Готов отвечать на вопросы, анализировать сны и не только.",
-        reply_markup=reply_markup
-    )
+    with open("oracle.jpg", "rb") as photo:
+        await context.bot.send_photo(
+            chat_id=chat_id,
+            photo=photo,
+            caption="👋 Привет! Я — Оракул. Готов отвечать на вопросы, анализировать сны и не только.",
+            reply_markup=reply_markup
+        )
 # Отвечаем на кнопки    
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
