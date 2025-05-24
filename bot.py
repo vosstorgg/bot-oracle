@@ -77,30 +77,30 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 # 💬 Сообщения от пользователя
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = str(update.effective_chat.id)
-    user_message = update.message.text
+#async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#    chat_id = str(update.effective_chat.id)
+#    user_message = update.message.text
 
     # Проверка: новый ли пользователь
-    with conn.cursor() as cur:
-        cur.execute("SELECT 1 FROM user_stats WHERE chat_id = %s", (chat_id,))
-        is_new_user = cur.fetchone() is None
+#    with conn.cursor() as cur:
+#        cur.execute("SELECT 1 FROM user_stats WHERE chat_id = %s", (chat_id,))
+#        is_new_user = cur.fetchone() is None
 
-    if is_new_user:
-        keyboard = [
-            [
-                InlineKeyboardButton("🧠 Что ты умеешь?", callback_data="about"),
-                InlineKeyboardButton("💎 Купить доступ", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-            ]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
+#    if is_new_user:
+#        keyboard = [
+#            [
+#                InlineKeyboardButton("🧠 Что ты умеешь?", callback_data="about"),
+#                InlineKeyboardButton("💎 Купить доступ", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+#            ]
+#        ]
+#        reply_markup = InlineKeyboardMarkup(keyboard)
 
-        with open("oracle.jpg", "rb") as photo:
-            await context.bot.send_photo(
-                chat_id=chat_id,
-                photo=photo,
-                caption="👋 Привет! Я — Оракул и готов отвечать на вопросы, анализировать сны и не только.",
-                reply_markup=reply_markup
+#        with open("oracle.jpg", "rb") as photo:
+#            await context.bot.send_photo(
+#                chat_id=chat_id,
+#                photo=photo,
+#                caption="👋 Привет! Я — Оракул и готов отвечать на вопросы, анализировать сны и не только.",
+#                reply_markup=reply_markup
             )
 
     # Сохраняем сообщение пользователя
