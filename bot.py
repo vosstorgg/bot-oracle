@@ -94,7 +94,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # История сообщений
     with conn.cursor() as cur:
-        cur.execute("""
+            cur.execute("""
             SELECT role, content FROM messages
             WHERE chat_id = %s
             ORDER BY timestamp DESC
@@ -103,8 +103,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rows = cur.fetchall()
         history = [{"role": role, "content": content} for role, content in reversed(rows)]
 
-# Показываем "печатает..." в интерфейсе Telegram
-await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+    # Показываем "печатает..." в интерфейсе Telegram
+        await context.bot.send_chat_action(chat_id=chat_id, action="typing")
 
 # Отправляем временное сообщение "Оракул размышляет..."
 thinking_msg = await update.message.reply_text("🧠 Оракул размышляет…")
@@ -120,6 +120,7 @@ try:
         max_tokens=MAX_TOKENS
     )
     reply = response.choices[0].message.content
+    
 except Exception as e:
     reply = f"Ошибка OpenAI: {e}"
 
@@ -130,8 +131,8 @@ except Exception as e:
             (chat_id, "assistant", reply, datetime.utcnow())
         )
         
-# Заменяем сообщение "Оракул размышляет…" на ответ
-await thinking_msg.edit_text(reply)
+    # Заменяем сообщение "Оракул размышляет…" на ответ
+    await thinking_msg.edit_text(reply)
 
 
 # 🧠 Обработка нажатия кнопки
