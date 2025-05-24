@@ -56,6 +56,26 @@ with conn.cursor() as cur:
         );
     """)
 
+# 💬 Старт из UI
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+
+    keyboard = [
+        [
+            InlineKeyboardButton("🧠 Что ты умеешь?", callback_data="about"),
+            InlineKeyboardButton("💎 Купить доступ", url="https://example.com/pay")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    with open("oracle.jpg", "rb") as photo:
+        await context.bot.send_photo(
+            chat_id=chat_id,
+            photo=photo,
+            caption="👋 Привет! Я — Оракул. Напиши мне что-нибудь, и я постараюсь помочь.",
+            reply_markup=reply_markup
+        )
+
 # 💬 Сообщения от пользователя
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = str(update.effective_chat.id)
