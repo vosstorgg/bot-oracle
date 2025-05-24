@@ -50,21 +50,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = str(update.effective_chat.id)
     user_message = update.message.text
 
-    # Проверка: новый ли пользователь
+# Проверка: новый ли пользователь
     with conn.cursor() as cur:
         cur.execute("SELECT 1 FROM user_stats WHERE chat_id = %s", (chat_id,))
         is_new_user = cur.fetchone() is None
-
-from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-
+        
 # Создаём кнопки
-    keyboard = [
-        [
-            InlineKeyboardButton("🧠 Что ты умеешь?", callback_data="about"),
-            InlineKeyboardButton("💎 Купить доступ", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+    if is_new_user:
+        keyboard = [
+            [
+                InlineKeyboardButton("🧠 Что ты умеешь?", callback_data="about"),
+                InlineKeyboardButton("💎 Купить доступ", url="https://example.com/pay")
+            ]
         ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
 # Отправляем картинку с кнопками
     with open("oracle.jpg", "rb") as photo:
