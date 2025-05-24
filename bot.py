@@ -101,7 +101,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #                photo=photo,
 #                caption="👋 Привет! Я — Оракул и готов отвечать на вопросы, анализировать сны и не только.",
 #                reply_markup=reply_markup
-            )
+#            )
 
     # Сохраняем сообщение пользователя
     with conn.cursor() as cur:
