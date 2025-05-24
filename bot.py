@@ -3,7 +3,7 @@ import openai
 import psycopg2
 from datetime import datetime
 from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
+from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 
 # 🔐 API ключи
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
@@ -55,14 +55,36 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cur.execute("SELECT 1 FROM user_stats WHERE chat_id = %s", (chat_id,))
         is_new_user = cur.fetchone() is None
 
-    with open("oracle.jpg", "rb") as photo:
-        await context.bot.send_photo(
-            chat_id=chat_id,
-            photo=photo,
-            caption="👋 Привет! Я — Оракул, работаю на базе GPT-4.\n\n"
-                 "Можешь задавать мне вопросы, описывать сны или просто общаться.\n"
-                 "Я запоминаю контекст — но ты сможешь сбросить его позже.\n\n"
-                 "Готов? Напиши что-нибудь!"
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+
+# Создаём кнопки
+keyboard = [
+    [
+        InlineKeyboardButton("🧠 Что ты умеешь?", callback_data="about"),
+        InlineKeyboardButton("💎 Купить доступ", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+    ]
+]
+reply_markup = InlineKeyboardMarkup(keyboard)
+
+# Отправляем картинку с кнопками
+with open("oracle.jpg", "rb") as photo:
+    await context.bot.send_photo(
+        chat_id=chat_id,
+        photo=photo,
+        caption="👋 Привет! Я — Оракул. Готов отвечать на вопросы, анализировать сны и не только.",
+        reply_markup=reply_markup
+    )
+# Отвечаем на кнопки    
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "about":
+        await query.message.reply_text(
+            "🧠 Я могу:\n"
+            "• Толковать сны\n"
+            "• Отвечать на философские и личные вопросы\n"
+            "• Давать рекомендации, предсказания и многое другое"
         )
 
     # Сохраняем сообщение пользователя
