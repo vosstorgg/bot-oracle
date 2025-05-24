@@ -2,7 +2,7 @@ import os
 import openai
 import psycopg2
 from datetime import datetime
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButto
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 
 # 🔐 API ключи
