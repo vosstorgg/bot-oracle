@@ -103,22 +103,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rows = cur.fetchall()
         history = [{"role": role, "content": content} for role, content in reversed(rows)]
 
-# Показываем "печатает..."
+# Показываем "печатает..." в интерфейсе Telegram
 await context.bot.send_chat_action(chat_id=chat_id, action="typing")
 
-    # GPT-4 запрос
-    try:
-        response = openai_client.chat.completions.create(
-            model="gpt-4",
-            messages=history + [{
-                "role": "system",
-                "content": "Пожалуйста, не превышай 3000 символов в ответе. Отвечай кратко и по существу."
-            }],
-            max_tokens=MAX_TOKENS
-        )
-        reply = response.choices[0].message.content
-    except Exception as e:
-        reply = f"Ошибка OpenAI: {e}"
+# Отправляем временное сообщение "Оракул размышляет..."
+thinking_msg = await update.message.reply_text("🧠 Оракул размышляет…")
+
+# GPT-4 запрос
+try:
+    response = openai_client.chat.completions.create(
+        model="gpt-4",
+        messages=history + [{
+            "role": "system",
+            "content": "Пожалуйста, не превышай 3000 символов в ответе. Отвечай кратко и по существу."
+        }],
+        max_tokens=MAX_TOKENS
+    )
+    reply = response.choices[0].message.content
+except Exception as e:
+    reply = f"Ошибка OpenAI: {e}"
 
     # Сохраняем ответ
     with conn.cursor() as cur:
@@ -126,8 +129,10 @@ await context.bot.send_chat_action(chat_id=chat_id, action="typing")
             "INSERT INTO messages (chat_id, role, content, timestamp) VALUES (%s, %s, %s, %s)",
             (chat_id, "assistant", reply, datetime.utcnow())
         )
+        
+# Заменяем сообщение "Оракул размышляет…" на ответ
+await thinking_msg.edit_text(reply)
 
-    await update.message.reply_text(reply)
 
 # 🧠 Обработка нажатия кнопки
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
