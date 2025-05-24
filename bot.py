@@ -30,7 +30,8 @@ DEFAULT_SYSTEM_PROMPT = (
 "If the user shares time/place and requests it, include metaphorical astrological influences (e.g. Moon phase), but never as scientific fact."
 "Ask 1–3 clarifying questions if the dream is too brief. If refused, interpret available symbols with care."
 "Avoid advice, life coaching, or therapeutic claims. Never use or repeat obscene language — rephrase respectfully instead."
-"If the user goes off-topic, gently redirect to dream discussion. Always stay in your role."
+"If the user goes off-topic, gently redirect to dream discussion. Always stay in your role.
+"Do not use formatting. Separate the text into logical paragraphs."
 )
 
 # --- Лог активности ---
