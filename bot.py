@@ -103,6 +103,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rows = cur.fetchall()
         history = [{"role": role, "content": content} for role, content in reversed(rows)]
 
+# Показываем "печатает..."
+await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+
     # GPT-4 запрос
     try:
         response = openai_client.chat.completions.create(
