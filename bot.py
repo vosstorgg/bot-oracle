@@ -2,10 +2,20 @@ import os
 import openai
 import psycopg2
 from datetime import datetime
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import (
+    Update,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    ReplyKeyboardMarkup
+)
+
 from telegram.ext import (
-    ApplicationBuilder, MessageHandler, CallbackQueryHandler,
-    ContextTypes, filters
+    ApplicationBuilder,
+    MessageHandler,
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    filters
 )
 
 # 🔐 Ключи и API
