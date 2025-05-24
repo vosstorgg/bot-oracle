@@ -35,6 +35,17 @@ with conn.cursor() as cur:
         );
     """)
 
+# Таблица статистики пользователей
+with conn.cursor() as cur:
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS user_stats (
+            chat_id TEXT PRIMARY KEY,
+            messages_sent INTEGER DEFAULT 0,
+            symbols_sent INTEGER DEFAULT 0,
+            updated_at TIMESTAMP DEFAULT NOW()
+        );
+    """)
+
 # 📥 Обработка сообщений
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = str(update.effective_chat.id)
@@ -46,6 +57,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "INSERT INTO messages (chat_id, role, content, timestamp) VALUES (%s, %s, %s, %s)",
             (chat_id, "user", user_message, datetime.utcnow())
         )
+# Обновляем статистику пользователя
+with conn.cursor() as cur:
+    cur.execute("""
+        INSERT INTO user_stats (chat_id, messages_sent, symbols_sent)
+        VALUES (%s, 1, %s)
+        ON CONFLICT (chat_id)
+        DO UPDATE SET
+            messages_sent = user_stats.messages_sent + 1,
+            symbols_sent = user_stats.symbols_sent + EXCLUDED.symbols_sent,
+            updated_at = NOW()
+    """, (chat_id, len(user_message)))
 
     # Загружаем последние MAX_HISTORY сообщений
     with conn.cursor() as cur:
