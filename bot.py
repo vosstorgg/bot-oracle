@@ -56,7 +56,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Классификация
     guard_prompt = [
-        {"role": "system", "content": "Ты — классификатор снов. Ответь строго 'сон' или 'не сон'."},
+        {"role": "system", "content": "Ты — классификатор снов. Ответь строго 'сон' или 'не сон', Но учитывай, что люди могут делиться эмоциями и чувствами"},
         {"role": "user", "content": user_message}
     ]
 
