@@ -54,12 +54,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Классификация
     guard_prompt = [
-        {"role": "system", "content": "Ты — классификатор. Ответь строго 'сон' или 'не сон'."},
+        {"role": "system", "content": "Ты — классификатор снов. Ответь строго 'сон' или 'не сон'."},
         {"role": "user", "content": user_message}
     ]
 
     guard_response = await openai_client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o",
         messages=guard_prompt,
         max_tokens=1,
         temperature=0
