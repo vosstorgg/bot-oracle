@@ -56,7 +56,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cur.execute(
             "INSERT INTO messages (chat_id, role, content, timestamp) VALUES (%s, %s, %s, %s)",
             (chat_id, "user", user_message, datetime.utcnow())
-        )
+        
 # Обновляем статистику пользователя
 with conn.cursor() as cur:
     cur.execute("""
@@ -81,6 +81,8 @@ with conn.cursor() as cur:
         rows = cur.fetchall()
         history = [{"role": role, "content": content} for role, content in reversed(rows)]
 
+    )
+    
     # Отправляем в OpenAI
     try:
         response = openai_client.chat.completions.create(
