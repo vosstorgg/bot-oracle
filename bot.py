@@ -3,15 +3,18 @@ import openai
 import psycopg2
 from datetime import datetime
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes, CallbackQueryHandler
+from telegram.ext import (
+    ApplicationBuilder, MessageHandler, CallbackQueryHandler,
+    ContextTypes, filters
+)
 
-# 🔐 API ключи
+# 🔐 Ключи и API
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 openai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
-# 🧠 Настройки истории
-MAX_HISTORY = 1000  # Кол-во последних сообщений на каждый запрос
+MAX_HISTORY = 10  # Кол-во последних сообщений
+MAX_TOKENS = 1000
 
 # 🗃 Подключение к PostgreSQL
 conn = psycopg2.connect(
@@ -23,7 +26,7 @@ conn = psycopg2.connect(
 )
 conn.autocommit = True
 
-# 🔧 Инициализация таблицы
+# 📦 Инициализация таблиц
 with conn.cursor() as cur:
     cur.execute("""
         CREATE TABLE IF NOT EXISTS messages (
@@ -34,9 +37,6 @@ with conn.cursor() as cur:
             timestamp TIMESTAMP DEFAULT NOW()
         );
     """)
-
-# Таблица статистики пользователей
-with conn.cursor() as cur:
     cur.execute("""
         CREATE TABLE IF NOT EXISTS user_stats (
             chat_id TEXT PRIMARY KEY,
@@ -46,47 +46,34 @@ with conn.cursor() as cur:
         );
     """)
 
+# 💬 Сообщения от пользователя
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = str(update.effective_chat.id)
     user_message = update.message.text
 
-# Проверка: новый ли пользователь
+    # Новый пользователь?
     with conn.cursor() as cur:
         cur.execute("SELECT 1 FROM user_stats WHERE chat_id = %s", (chat_id,))
         is_new_user = cur.fetchone() is None
-        
-# Создаём кнопки
+
     if is_new_user:
         keyboard = [
             [
                 InlineKeyboardButton("🧠 Что ты умеешь?", callback_data="about"),
-                InlineKeyboardButton("💎 Купить доступ", url="https://example.com/pay")
+                InlineKeyboardButton("💎 Купить доступ", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ")
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-# Отправляем картинку с кнопками
-    with open("oracle.jpg", "rb") as photo:
-        await context.bot.send_photo(
-            chat_id=chat_id,
-            photo=photo,
-            caption="👋 Привет! Я — Оракул. Готов отвечать на вопросы, анализировать сны и не только.",
-            reply_markup=reply_markup
-        )
-# Отвечаем на кнопки    
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+        with open("oracle.jpg", "rb") as photo:
+            await context.bot.send_photo(
+                chat_id=chat_id,
+                photo=photo,
+                caption="👋 Привет! Я — Оракул, готов отвечать на вопросы, анализировать сны и не только.",
+                reply_markup=reply_markup
+            )
 
-    if query.data == "about":
-        await query.message.reply_text(
-            "🧠 Я могу:\n"
-            "• Толковать сны\n"
-            "• Отвечать на философские и личные вопросы\n"
-            "• Давать рекомендации, предсказания и многое другое"
-        )
-
-    # Сохраняем сообщение пользователя
+    # Сохраняем сообщение
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO messages (chat_id, role, content, timestamp) VALUES (%s, %s, %s, %s)",
@@ -105,7 +92,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 updated_at = NOW()
         """, (chat_id, len(user_message)))
 
-    # Загружаем историю
+    # История сообщений
     with conn.cursor() as cur:
         cur.execute("""
             SELECT role, content FROM messages
@@ -116,17 +103,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rows = cur.fetchall()
         history = [{"role": role, "content": content} for role, content in reversed(rows)]
 
-    # GPT-ответ
+    # GPT-4 запрос
     try:
         response = openai_client.chat.completions.create(
             model="gpt-4",
-            messages=history + [
-                {
-                    "role": "system",
-                    "content": "Пожалуйста, не превышай 3000 символов в своём ответе. Отвечай кратко и по существу."
-                }
-            ],
-            max_tokens=1000
+            messages=history + [{
+                "role": "system",
+                "content": "Пожалуйста, не превышай 3000 символов в ответе. Отвечай кратко и по существу."
+            }],
+            max_tokens=MAX_TOKENS
         )
         reply = response.choices[0].message.content
     except Exception as e:
@@ -141,7 +126,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(reply)
 
-# 🚀 Запуск бота
+# 🧠 Обработка нажатия кнопки
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "about":
+        await query.message.reply_text(
+            "🧠 Я могу:\n"
+            "• Толковать сны\n"
+            "• Отвечать на философские и личные вопросы\n"
+            "• Давать советы, предсказания и многое другое"
+        )
+
+# 🚀 Запуск
 if __name__ == '__main__':
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
