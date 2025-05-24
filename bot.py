@@ -60,12 +60,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         history = [{"role": role, "content": content} for role, content in reversed(rows)]
 
     # Отправляем в OpenAI
-        try:
+    try:
         response = openai_client.chat.completions.create(
             model="gpt-4",
-            messages=history
+            messages=history + [
+                {
+                    "role": "system",
+                    "content": "Пожалуйста, не превышай 3000 символов в своём ответе. Отвечай кратко и по существу, избегай лишних подробностей."
+                }
+            ],
+            max_tokens=1000  # ~3000–3500 символов
         )
         reply = response.choices[0].message.content
+
+    except Exception as e:
+        reply = f"Ошибка OpenAI: {e}"
+
 
         # ✂️ Ограничение длины
         MAX_REPLY_LENGTH = 3000
