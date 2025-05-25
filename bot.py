@@ -54,26 +54,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     chat_id = str(update.effective_chat.id)
     user = update.effective_user
-
-    # Классификация
-    guard_prompt = [
-        {"role": "system", "content": "Ты — классификатор снов. Ответь строго 'сон' или 'не сон', Но учитывай, что люди могут делиться эмоциями и чувствами"},
-        {"role": "user", "content": user_message}
-    ]
-
-    guard_response = await openai_client.chat.completions.create(
-        model="gpt-4o",
-        messages=guard_prompt,
-        max_tokens=1,
-        temperature=0
-    )
-
-    guard_result = guard_response.choices[0].message.content.strip().lower()
-    if guard_result != "сон":
-        await update.message.reply_text("🛌 Я могу интерпретировать только сны. Пожалуйста, опишите сновидение.")
-        log_activity(user, chat_id, "rejected_non_dream", user_message)
-        return
-
+    
     log_activity(user, chat_id, "message", user_message)
     log_activity(user, chat_id, "gpt_request", f"model=gpt-4o, temp=0.4, max_tokens={MAX_TOKENS}")
     log_activity(user, chat_id, "rejected_non_dream", user_message)
@@ -93,7 +74,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         history = [{"role": r, "content": c} for r, c in reversed(rows)]
 
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
-    thinking_msg = await update.message.reply_text("Изучаю сон…")
+    thinking_msg = await update.message.reply_text("👁‍🗨 Изучаю...")
 
     log_activity(user, chat_id, "dream_interpreted", reply[:300])
 
@@ -124,7 +105,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [InlineKeyboardButton("🧠 Что ты умеешь?", callback_data="about")],
-        [InlineKeyboardButton("💎 Купить доступ", url="https://example.com/pay")]
+        [InlineKeyboardButton("💎 Задонатить боту", url="https://example.com/pay")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
