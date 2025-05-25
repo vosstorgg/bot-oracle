@@ -31,7 +31,7 @@ DEFAULT_SYSTEM_PROMPT = (
 "Ask 1–3 clarifying questions if the dream is too brief. If refused, interpret available symbols with care."
 "Avoid advice, life coaching, or therapeutic claims. Never use or repeat obscene language — rephrase respectfully instead."
 "If the user goes off-topic, gently redirect to dream discussion. Always stay in your role."
-"Do not use formatting. Separate the text into logical paragraphs."
+"Use formatting according only Telegram sheme. Separate the text into logical paragraphs."
 )
 
 # --- Лог активности ---
@@ -57,7 +57,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     log_activity(user, chat_id, "message", user_message)
     log_activity(user, chat_id, "gpt_request", f"model=gpt-4o, temp=0.4, max_tokens={MAX_TOKENS}")
-    log_activity(user, chat_id, "rejected_non_dream", user_message)
 
     with conn.cursor() as cur:
         cur.execute("""
@@ -75,8 +74,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
     thinking_msg = await update.message.reply_text("👁‍🗨 Изучаю...")
-
-    log_activity(user, chat_id, "dream_interpreted", reply[:300])
 
     try:
         response = await openai_client.chat.completions.create(
