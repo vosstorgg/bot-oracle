@@ -104,7 +104,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [InlineKeyboardButton("🧠 Что ты умеешь?", callback_data="about")],
-        [InlineKeyboardButton("🧾 Заполнить анкету", callback_data="start_profile")]
+        [InlineKeyboardButton("🧾 Заполнить анкету", callback_data="start_profile")],
         [InlineKeyboardButton("💎 Задонатить боту", url="https://example.com/pay")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -118,8 +118,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=reply_markup
             )
     except FileNotFoundError:
-        await update.message.reply_text("👋 Привет! Я — Трактователь Снов. Просто опиши свой сон — и я помогу его интерпретировать.", parse_mode='Markdown')
-
+        await update.message.reply_text(
+            "👋 Привет! Я — Трактователь Снов. Просто опиши свой сон — и я помогу его интерпретировать.",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
 
 # --- Обработчик кнопок ---
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
