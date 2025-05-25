@@ -62,7 +62,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cur.execute("""
             INSERT INTO messages (chat_id, role, content, timestamp)
             VALUES (%s, %s, %s, %s)
-        """, (chat_id, "user", user_message, datetime.utcnow()))
+        """, (chat_id, "user", user_message, datetime.now(datetime.UTC))
 
     with conn.cursor() as cur:
         cur.execute("""
@@ -107,7 +107,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🧾 Заполнить анкету", callback_data="start_profile")]
         [InlineKeyboardButton("💎 Задонатить боту", url="https://example.com/pay")]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
 
     try:
         with open("oracle.jpg", "rb") as photo:
