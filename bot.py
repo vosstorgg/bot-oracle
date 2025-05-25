@@ -131,8 +131,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     log_activity(update.effective_user, str(update.effective_chat.id), "start")
 
     keyboard = [
+        [InlineKeyboardButton("🧾 Рассказать о себе", callback_data="start_profile")],
         [InlineKeyboardButton("🧠 Что ты умеешь?", callback_data="about")],
-        [InlineKeyboardButton("🧾 Заполнить анкету", callback_data="start_profile")],
         [InlineKeyboardButton("💎 Задонатить боту", callback_data="donate")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -142,12 +142,12 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_photo(
                 chat_id=chat_id,
                 photo=photo,
-                caption="👋 Привет! Я — Трактователь Снов. Просто опиши свой сон — и я помогу его интерпретировать.",
+                caption="👋 Привет! Я — Трактователь Снов. Пожалуйста, расскажи о себе, нажав кнопку ниже — это позволит мне лучше понимать для кого я трактую сны. Или можешь просто описать свой сон и я расскажу тебе его скрытые смыслы",
                 reply_markup=reply_markup
             )
     except FileNotFoundError:
         await update.message.reply_text(
-            "👋 Привет! Я — Трактователь Снов. Просто опиши свой сон — и я помогу его интерпретировать.",
+            "👋 Привет! Я — Трактователь Снов. Пожалуйста, расскажи о себе, нажав кнопку ниже — это позволит мне лучше понимать для кого я трактую сны. Или можешь просто описать свой сон и я расскажу тебе его скрытые смыслы",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
@@ -166,7 +166,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     elif query.data == "donate":
         await query.message.reply_text(
-            "💸 Спасибо за желание поддержать проект!\n\nВыберите сумму:",
+            "💸 Спасибо за желание поддержать проект!\n\nВыберите сумму поддержки:",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("Чашка кофе (200 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=200")],
                 [InlineKeyboardButton("Кофе с тортиком (500 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=500")],
@@ -188,7 +188,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "profile_step:gender":
         context.user_data['profile_step'] = "gender"
         await query.message.reply_text(
-            "🧾 Вопрос 1 из 3:\n\Укажите ваш пол",
+            "🧾 Вопрос 1 из 3:\n\nУкажите ваш пол",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("Мужской", callback_data="gender:male")],
                 [InlineKeyboardButton("Женский", callback_data="gender:female")],
@@ -205,7 +205,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['profile_step'] = "age"
 
         await query.message.reply_text(
-            "👤 Вопрос 2 из 3:\n\Укажите ваш возраст",
+            "👤 Вопрос 2 из 3:\n\nУкажите ваш возраст",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("До 18", callback_data="age:<18")],
                 [InlineKeyboardButton("18–30", callback_data="age:18-30")],
@@ -220,7 +220,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['profile_step'] = "lucid"
 
         await query.message.reply_text(
-            "🌙 Вопрос 3 из 3:\n\Как часто вы испытываете осознанные сны?",
+            "🌙 Вопрос 3 из 3:\n\nКак часто вы испытываете осознанные сны?",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("Часто", callback_data="lucid:часто")],
                 [InlineKeyboardButton("Иногда", callback_data="lucid:иногда")],
@@ -252,8 +252,19 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.commit()
 
         await query.message.reply_text(
-            "✅ Спасибо! Профиль сохранён.\nТеперь я смогу учитывать ваш опыт в интерпретации снов."
-        )
+            "✅ Спасибо! Профиль сохранён.\nТеперь я смогу учитывать ваш опыт в интерпретации снов.",
+            reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌙 Рассказать первый сон", callback_data="start_first_dream")]
+        ])
+    )
+        
+    elif query.data == "start_first_dream":
+        await query.message.reply_text(
+        "✨ Расскажи особенно подробно — кто в твоём сне, где ты был, что чувствовал."
+        "Чем больше деталей, тем точнее получится интерпретация. Я весь внимание..."
+    )
+
+        
 
 # --- Инициализация приложения ---
 if __name__ == "__main__":
