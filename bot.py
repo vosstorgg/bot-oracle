@@ -73,7 +73,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         log_activity(user, chat_id, "rejected_non_dream", user_message)
         return
 
-    log_activity(user, chat_id, "message", user_message)
+    log_activity(update.effective_user, chat_id, "message", user_message)
 
     with conn.cursor() as cur:
         cur.execute("""
@@ -117,7 +117,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user = update.effective_user
-    log_activity(user, str(chat_id), "start")
+    log_activity(update.effective_user, str(update.effective_chat.id), "start")
 
     keyboard = [
         [InlineKeyboardButton("🧠 Что ты умеешь?", callback_data="about")],
@@ -140,7 +140,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    log_activity(query.from_user, str(query.message.chat.id), f"button:{query.data}")
+    log_activity(update.effective_user, str(update.effective_chat.id), f"button:{query.data}")
 
     if query.data == "about":
         await query.message.reply_text("Я могу анализировать сны, отвечать на вопросы, работать с контекстом. Просто опиши свой сон!")
