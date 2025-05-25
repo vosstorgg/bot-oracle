@@ -8,6 +8,12 @@ from telegram.ext import (
 )
 from openai import AsyncOpenAI
 
+# --- Markdown ---
+import re
+def escape_markdown(text: str) -> str:
+    escape_chars = r'\_*[]()~`>#+-=|{}.!'
+    return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
+
 # --- OpenAI client ---
 openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -54,7 +60,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     chat_id = str(update.effective_chat.id)
     user = update.effective_user
-    
+
     log_activity(user, chat_id, "message", user_message)
     log_activity(user, chat_id, "gpt_request", f"model=gpt-4o, temp=0.4, max_tokens={MAX_TOKENS}")
 
@@ -83,6 +89,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             max_tokens=MAX_TOKENS
         )
         reply = response.choices[0].message.content
+        log_activity(user, chat_id, "dream_interpreted", reply[:300])
+
     except Exception as e:
         reply = f"❌ Ошибка OpenAI: {e}"
 
@@ -92,7 +100,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             VALUES (%s, %s, %s, %s)
         """, (chat_id, "assistant", reply, datetime.utcnow()))
 
-    await thinking_msg.edit_text(reply)
+    safe_reply = escape_markdown(reply)
+    await thinking_msg.edit_text(safe_reply, parse_mode='MarkdownV2')
 
 # --- Обработчик команды /start ---
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
