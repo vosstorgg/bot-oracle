@@ -171,14 +171,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("Чашка кофе (200 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=200")],
                 [InlineKeyboardButton("Кофе с тортиком (500 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=500")],
                 [InlineKeyboardButton("Оплата сервера (1000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=1000")],
-                [InlineKeyboardButton("Безобразие (2000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=2000")],
-                [InlineKeyboardButton("Форменное безобразие (5000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=5000")]
+                [InlineKeyboardButton("Большая благодарность (2000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=2000")],
+                [InlineKeyboardButton("Огромная благодарность (5000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=5000")]
             ])
         )
 
     elif query.data == "start_profile":
         await query.message.reply_text(
-            "🧾 Я хочу лучше понять ваш контекст. Анкета займёт меньше минуты и поможет мне давать более точные трактовки.\n\nНачнём?",
+            "🧾 Я хочу лучше вас понимать. Анкета займёт меньше минуты и поможет мне давать более точные трактовки.\n\nНачнём?",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("Да, начать", callback_data="profile_step:gender")],
                 [InlineKeyboardButton("Позже", callback_data="profile_step:skip")]
@@ -188,7 +188,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "profile_step:gender":
         context.user_data['profile_step'] = "gender"
         await query.message.reply_text(
-            "🧾 Вопрос 1 из 3: Какой у вас пол?",
+            "🧾 Вопрос 1 из 3:\n\Укажите ваш пол",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("Мужской", callback_data="gender:male")],
                 [InlineKeyboardButton("Женский", callback_data="gender:female")],
@@ -205,7 +205,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['profile_step'] = "age"
 
         await query.message.reply_text(
-            "👤 Вопрос 2 из 3: Укажите возрастную группу",
+            "👤 Вопрос 2 из 3:\n\Укажите ваш возраст",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("До 18", callback_data="age:<18")],
                 [InlineKeyboardButton("18–30", callback_data="age:18-30")],
@@ -220,7 +220,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['profile_step'] = "lucid"
 
         await query.message.reply_text(
-            "🌙 Вопрос 3 из 3: Как часто вы испытываете осознанные сны?",
+            "🌙 Вопрос 3 из 3:\n\Как часто вы испытываете осознанные сны?",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("Часто", callback_data="lucid:часто")],
                 [InlineKeyboardButton("Иногда", callback_data="lucid:иногда")],
