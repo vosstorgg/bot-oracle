@@ -107,6 +107,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🧾 Заполнить анкету", callback_data="start_profile")]
         [InlineKeyboardButton("💎 Задонатить боту", url="https://example.com/pay")]
     ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
     try:
         with open("oracle.jpg", "rb") as photo:
