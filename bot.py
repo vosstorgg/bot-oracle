@@ -1,6 +1,6 @@
 import os
 import psycopg2
-from datetime import datetime
+from datetime import datetime, timezone
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     ApplicationBuilder, ContextTypes,
@@ -65,7 +65,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cur.execute("""
             INSERT INTO messages (chat_id, role, content, timestamp)
             VALUES (%s, %s, %s, %s)
-        """, (chat_id, "user", user_message, datetime.now(datetime.UTC)))
+        """, (chat_id, "user", user_message, datetime.now(timezone.utc)))
 
     # Загружаем историю
     with conn.cursor() as cur:
