@@ -160,42 +160,42 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     log_activity(update.effective_user, str(update.effective_chat.id), f"button:{query.data}")
 
     if query.data == "about":
-    with open("about.jpg", "rb") as photo:
-        await context.bot.send_photo(
-            chat_id=query.message.chat_id,
-            photo=photo,
-            caption="Я Толкователь снов, и я расскажу о себе",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🌙 Рассказать свой сон", callback_data="start_first_dream")]
-            ])
-        )
+        with open("about.jpg", "rb") as photo:
+            await context.bot.send_photo(
+                chat_id=query.message.chat_id,
+                photo=photo,
+                caption="Я Толкователь снов, и я расскажу о себе",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🌙 Рассказать свой сон", callback_data="start_first_dream")]
+                ])
+            )
     
     elif query.data == "donate":
-    with open("donate.jpg", "rb") as photo:
-        await context.bot.send_photo(
-            chat_id=query.message.chat_id,
-            photo=photo,
-            caption="💸 Спасибо за желание поддержать проект!\n\nВыберите сумму поддержки:",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("Чашка кофе (200 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=200")],
-                [InlineKeyboardButton("Кофе с тортиком (500 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=500")],
-                [InlineKeyboardButton("Оплата сервера (1000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=1000")],
-                [InlineKeyboardButton("Большая благодарность (2000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=2000")],
-                [InlineKeyboardButton("Огромная благодарность (5000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=5000")]
-            ])
-        )
+        with open("donate.jpg", "rb") as photo:
+            await context.bot.send_photo(
+                chat_id=query.message.chat_id,
+                photo=photo,
+                caption="💸 Спасибо за желание поддержать проект!\n\nВыберите сумму поддержки:",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Чашка кофе (200 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=200")],
+                    [InlineKeyboardButton("Кофе с тортиком (500 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=500")],
+                    [InlineKeyboardButton("Оплата сервера (1000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=1000")],
+                    [InlineKeyboardButton("Большая благодарность (2000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=2000")],
+                    [InlineKeyboardButton("Огромная благодарность (5000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=5000")]
+                ])
+            )
 
     elif query.data == "start_profile":
-    with open("quiz.jpg", "rb") as photo:
-        await context.bot.send_photo(
-            chat_id=query.message.chat_id,
-            photo=photo,
-            caption="🧾 Я хочу лучше вас понимать. Анкета займёт меньше минуты и поможет мне давать более точные трактовки.\n\nНачнём?",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("Да, начать", callback_data="profile_step:gender")],
-                [InlineKeyboardButton("Позже", callback_data="profile_step:skip")]
-            ])
-        )
+        with open("quiz.jpg", "rb") as photo:
+            await context.bot.send_photo(
+                chat_id=query.message.chat_id,
+                photo=photo,
+                caption="🧾 Я хочу лучше вас понимать. Анкета займёт меньше минуты и поможет мне давать более точные трактовки.\n\nНачнём?",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Да, начать", callback_data="profile_step:gender")],
+                    [InlineKeyboardButton("Позже", callback_data="profile_step:skip")]
+                ])
+            )
 
     elif query.data == "profile_step:gender":
         context.user_data['profile_step'] = "gender"
