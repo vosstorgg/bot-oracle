@@ -47,6 +47,7 @@ def log_activity(user, chat_id, action, content=""):
             action,
             content[:1000]
         ))
+    conn.commit()
 
 # --- Обработчик сообщений ---
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -73,7 +74,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         log_activity(user, chat_id, "rejected_non_dream", user_message)
         return
 
-    log_activity(update.effective_user, chat_id, "message", user_message)
+    log_activity(user, chat_id, "message", user_message)
+    log_activity(user, chat_id, "gpt_request", ...)
+    log_activity(user, chat_id, "rejected_non_dream", user_message)
 
     with conn.cursor() as cur:
         cur.execute("""
