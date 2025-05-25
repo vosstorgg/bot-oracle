@@ -104,6 +104,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [InlineKeyboardButton("🧠 Что ты умеешь?", callback_data="about")],
+        [InlineKeyboardButton("🧾 Заполнить анкету", callback_data="start_profile")]
         [InlineKeyboardButton("💎 Задонатить боту", url="https://example.com/pay")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -127,7 +128,89 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     log_activity(update.effective_user, str(update.effective_chat.id), f"button:{query.data}")
 
     if query.data == "about":
-        await query.message.reply_text("Я могу анализировать сны, отвечать на вопросы, работать с контекстом. Просто опиши свой сон!", parse_mode='Markdown')
+        await query.message.reply_text(
+            "Я могу анализировать сны, отвечать на вопросы, работать с контекстом. Просто опиши свой сон!",
+            parse_mode='Markdown'
+        )
+
+    elif query.data == "start_profile":
+        await query.message.reply_text(
+            "🧾 Я хочу лучше понять ваш контекст. Анкета займёт меньше минуты и поможет мне давать более точные трактовки.\n\nНачнём?",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Да, начать", callback_data="profile_step:gender")],
+                [InlineKeyboardButton("Позже", callback_data="profile_step:skip")]
+            ])
+        )
+
+    elif query.data == "profile_step:gender":
+        context.user_data['profile_step'] = "gender"
+        await query.message.reply_text(
+            "🧾 Вопрос 1 из 3: Какой у вас пол?",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Мужской", callback_data="gender:male")],
+                [InlineKeyboardButton("Женский", callback_data="gender:female")],
+                [InlineKeyboardButton("Другое / Неважно", callback_data="gender:other")]
+            ])
+        )
+
+    elif query.data == "profile_step:skip":
+        await query.message.reply_text("Хорошо! Вы всегда можете вернуться к анкете позже через команду /start.")
+
+    elif query.data.startswith("gender:"):
+        gender = query.data.split(":")[1]
+        context.user_data['gender'] = gender
+        context.user_data['profile_step'] = "age"
+
+        await query.message.reply_text(
+            "👤 Вопрос 2 из 3: Укажите возрастную группу",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("До 18", callback_data="age:<18")],
+                [InlineKeyboardButton("18–30", callback_data="age:18-30")],
+                [InlineKeyboardButton("31–50", callback_data="age:31-50")],
+                [InlineKeyboardButton("50+", callback_data="age:50+")]
+            ])
+        )
+
+    elif query.data.startswith("age:"):
+        age = query.data.split(":")[1]
+        context.user_data['age_group'] = age
+        context.user_data['profile_step'] = "lucid"
+
+        await query.message.reply_text(
+            "🌙 Вопрос 3 из 3: Как часто вы испытываете осознанные сны?",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Часто", callback_data="lucid:часто")],
+                [InlineKeyboardButton("Иногда", callback_data="lucid:иногда")],
+                [InlineKeyboardButton("Никогда", callback_data="lucid:никогда")]
+            ])
+        )
+
+    elif query.data.startswith("lucid:"):
+        lucid = query.data.split(":")[1]
+        context.user_data['lucid_dreaming'] = lucid
+        context.user_data['profile_step'] = None
+
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO user_profile (chat_id, username, gender, age_group, lucid_dreaming, updated_at)
+                VALUES (%s, %s, %s, %s, %s, now())
+                ON CONFLICT (chat_id) DO UPDATE
+                SET gender = EXCLUDED.gender,
+                    age_group = EXCLUDED.age_group,
+                    lucid_dreaming = EXCLUDED.lucid_dreaming,
+                    updated_at = now()
+            """, (
+                str(update.effective_chat.id),
+                f"@{update.effective_user.username}" if update.effective_user.username else None,
+                context.user_data.get('gender'),
+                context.user_data.get('age_group'),
+                lucid
+            ))
+        conn.commit()
+
+        await query.message.reply_text(
+            "✅ Спасибо! Профиль сохранён.\nТеперь я смогу учитывать ваш опыт в интерпретации снов."
+        )
 
 
 # --- Инициализация приложения ---
