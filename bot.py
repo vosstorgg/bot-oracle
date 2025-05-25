@@ -133,7 +133,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🧾 Рассказать о себе", callback_data="start_profile")],
         [InlineKeyboardButton("🧠 Что ты умеешь?", callback_data="about")],
-        [InlineKeyboardButton("💎 Задонатить боту", callback_data="donate")]
+        [InlineKeyboardButton("💎 Задонатить боту", callback_data="donate")],
+        [InlineKeyboardButton("🌙 Рассказать свой сон", callback_data="start_first_dream")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -252,19 +253,18 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.commit()
 
         await query.message.reply_text(
-            "✅ Спасибо! Профиль сохранён.\nТеперь я смогу учитывать ваш опыт в интерпретации снов.",
+            "✅ Спасибо! Я записал для себя ответы.\nТеперь я смогу учитывать ваш опыт в интерпретации снов.",
             reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🌙 Рассказать первый сон", callback_data="start_first_dream")]
+            [InlineKeyboardButton("🌙 Рассказать свой сон", callback_data="start_first_dream")]
         ])
     )
         
     elif query.data == "start_first_dream":
         await query.message.reply_text(
-        "✨ Расскажи особенно подробно — кто в твоём сне, где ты был, что чувствовал."
+        "✨ Расскажи особенно подробно — кто в твоём сне, где ты был, что чувствовал. "
         "Чем больше деталей, тем точнее получится интерпретация. Я весь внимание..."
     )
 
-        
 
 # --- Инициализация приложения ---
 if __name__ == "__main__":
