@@ -163,6 +163,18 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Я могу анализировать сны, отвечать на вопросы, работать с контекстом. Просто опиши свой сон!",
             parse_mode='Markdown'
         )
+        
+    elif query.data == "donate":
+        await query.message.reply_text(
+            "💸 Спасибо за желание поддержать проект!\n\nВыберите сумму:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Чашка кофе (200 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=200")],
+                [InlineKeyboardButton("Кофе с тортиком (500 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=500")],
+                [InlineKeyboardButton("Оплата сервера (1000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=1000")],
+                [InlineKeyboardButton("Безобразие (2000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=2000")]
+                [InlineKeyboardButton("Форменное безобразие (5000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=5000")],
+            ])
+        )
 
     elif query.data == "start_profile":
         await query.message.reply_text(
@@ -242,19 +254,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text(
             "✅ Спасибо! Профиль сохранён.\nТеперь я смогу учитывать ваш опыт в интерпретации снов."
         )
-
-        elif query.data == "donate":
-            await query.message.reply_text(
-                "💸 Спасибо за желание поддержать проект!\n\nВыберите сумму:",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Чашка кофе (200 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=200")],
-                    [InlineKeyboardButton("Кофе с тортиком (500 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=500")],
-                    [InlineKeyboardButton("Оплата сервера (1000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=1000")],
-                    [InlineKeyboardButton("Безобразие (2000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=2000")]
-                    [InlineKeyboardButton("Форменное безобразие (5000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=5000")],
-                ])
-            )
-
 
 # --- Инициализация приложения ---
 if __name__ == "__main__":
