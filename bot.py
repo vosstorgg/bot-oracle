@@ -101,7 +101,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         """, (chat_id, "assistant", reply, datetime.utcnow()))
 
     safe_reply = escape_markdown(reply)
-    await thinking_msg.edit_text(safe_reply, parse_mode='MarkdownV2')
+    await thinking_msg.edit_text(reply, parse_mode='Markdown')
 
 # --- Обработчик команды /start ---
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
