@@ -25,13 +25,15 @@ MAX_HISTORY = 10
 
 # --- Default system prompt ---
 DEFAULT_SYSTEM_PROMPT = (
-"You are a dream analyst trained in the Jungian tradition. Your interpretations rely on archetypes, symbols, and the collective unconscious, based on the works of C.G. Jung, M.-L. von Franz, ARAS, the Jung Institute Zürich, and Chevalier & Gheerbrant's Dictionary of Symbols, including The Book of Symbols."
-"Your task is to: Treat each dream as a unique message from the unconscious, Identify key images and archetypes, Interpret them hypothetically, clearly, and respectfully — never predict the future or make categorical claims, Consider characters, setting, and mood. Use simple language, structured paragraphs, and avoid complex or clinical terms."
-"If the user shares time/place and requests it, include metaphorical astrological influences (e.g. Moon phase), but never as scientific fact."
-"Ask 1–3 clarifying questions if the dream is too brief. If refused, interpret available symbols with care."
-"Avoid advice, life coaching, or therapeutic claims. Never use or repeat obscene language — rephrase respectfully instead."
-"If the user goes off-topic, gently redirect to dream discussion. Always stay in your role."
-"Use emoji consistently to illustrate or reinforce key points and symbols. Avoid overusing them. Use them to create lists and emphasize important points."
+    "You are a dream analyst trained in the Jungian tradition. Your interpretations rely on archetypes, symbols, and the collective unconscious, "
+    "based on the works of C.G. Jung, M.-L. von Franz, ARAS, the Jung Institute Zürich, and Chevalier & Gheerbrant's Dictionary of Symbols, including The Book of Symbols. "
+    "Treat each dream as a unique message from the unconscious. Identify key images and archetypes. Interpret them hypothetically, clearly, and respectfully — never predict the future or make categorical claims. "
+    "Always consider the dream's characters, setting, atmosphere, and structure. Use simple language, avoid clinical or overly technical terms, and structure your reply into logical paragraphs. "
+    "Use only Telegram Markdown formatting (e.g. *bold*, _italic_, `code`) and emojis to illustrate symbols (e.g. 🌑, 👁, 🪞). Do not use HTML. "
+    "If the dream is too brief, ask up to 3 clarifying questions. If refused, proceed carefully with the available content. "
+    "If the user asks non-dream-related questions, gently redirect to dream interpretation. Never offer life advice, coaching, or therapeutic guidance. "
+    "Replace any inappropriate or obscene language with respectful synonyms and continue. Always remain in your role as a symbolic interpreter."
+    "\n\n# User context\n"
 )
 
 # --- Лог активности ---
@@ -58,12 +60,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     log_activity(user, chat_id, "message", user_message)
     log_activity(user, chat_id, "gpt_request", f"model=gpt-4o, temp=0.4, max_tokens={MAX_TOKENS}")
 
+    # Сохраняем сообщение пользователя
     with conn.cursor() as cur:
         cur.execute("""
             INSERT INTO messages (chat_id, role, content, timestamp)
             VALUES (%s, %s, %s, %s)
         """, (chat_id, "user", user_message, datetime.now(datetime.UTC)))
 
+    # Загружаем историю
     with conn.cursor() as cur:
         cur.execute("""
             SELECT role, content FROM messages
@@ -72,28 +76,52 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rows = cur.fetchall()
         history = [{"role": r, "content": c} for r, c in reversed(rows)]
 
+    # Получаем анкету пользователя
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT gender, age_group, lucid_dreaming FROM user_profile
+            WHERE chat_id = %s
+        """, (chat_id,))
+        profile = cur.fetchone()
+
+    profile_info = ""
+    if profile:
+        gender, age_group, lucid = profile
+        if gender:
+            profile_info += f"User gender: {gender}. "
+        if age_group:
+            profile_info += f"User age group: {age_group}. "
+        if lucid:
+            profile_info += f"Lucid dream experience: {lucid}. "
+
+    # Собираем персонализированный prompt
+    personalized_prompt = DEFAULT_SYSTEM_PROMPT
+    if profile_info:
+        personalized_prompt += f"\n\n# User context\n{profile_info.strip()}"
+
+    # Отправка "размышляет"
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
     thinking_msg = await update.message.reply_text("👁‍🗨 Изучаю...")
 
     try:
         response = await openai_client.chat.completions.create(
             model="gpt-4o",
-            messages=[{"role": "system", "content": DEFAULT_SYSTEM_PROMPT}] + history,
+            messages=[{"role": "system", "content": personalized_prompt}] + history,
             temperature=0.4,
             max_tokens=MAX_TOKENS
         )
         reply = response.choices[0].message.content
         log_activity(user, chat_id, "dream_interpreted", reply[:300])
-
     except Exception as e:
         reply = f"❌ Ошибка OpenAI: {e}"
 
+    # Сохраняем ответ
     with conn.cursor() as cur:
         cur.execute("""
             INSERT INTO messages (chat_id, role, content, timestamp)
             VALUES (%s, %s, %s, %s)
-        """, (chat_id, "assistant", reply, datetime.utcnow()))
-        
+        """, (chat_id, "assistant", reply, datetime.now(datetime.UTC)))
+
     await thinking_msg.edit_text(reply, parse_mode='Markdown')
 
 # --- Обработчик команды /start ---
