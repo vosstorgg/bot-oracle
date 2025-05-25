@@ -8,12 +8,6 @@ from telegram.ext import (
 )
 from openai import AsyncOpenAI
 
-# --- Markdown ---
-import re
-def escape_markdown(text: str) -> str:
-    escape_chars = r'\_*[]()~`>#+-=|{}.!'
-    return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
-
 # --- OpenAI client ---
 openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -99,8 +93,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             INSERT INTO messages (chat_id, role, content, timestamp)
             VALUES (%s, %s, %s, %s)
         """, (chat_id, "assistant", reply, datetime.utcnow()))
-
-    safe_reply = escape_markdown(reply)
+        
     await thinking_msg.edit_text(reply, parse_mode='Markdown')
 
 # --- Обработчик команды /start ---
@@ -124,7 +117,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=reply_markup
             )
     except FileNotFoundError:
-        await update.message.reply_text("👋 Привет! Я — Трактователь Снов. Просто опиши свой сон — и я помогу его интерпретировать.")
+        await update.message.reply_text("👋 Привет! Я — Трактователь Снов. Просто опиши свой сон — и я помогу его интерпретировать.", parse_mode='Markdown')
+
 
 # --- Обработчик кнопок ---
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -133,7 +127,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     log_activity(update.effective_user, str(update.effective_chat.id), f"button:{query.data}")
 
     if query.data == "about":
-        await query.message.reply_text("Я могу анализировать сны, отвечать на вопросы, работать с контекстом. Просто опиши свой сон!")
+        await query.message.reply_text("Я могу анализировать сны, отвечать на вопросы, работать с контекстом. Просто опиши свой сон!", parse_mode='Markdown')
+
 
 # --- Инициализация приложения ---
 if __name__ == "__main__":
