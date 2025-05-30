@@ -288,4 +288,15 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    import asyncio
+
+    async def reset_updates():
+        try:
+            await app.bot.get_updates(offset=-1)
+            print("Очередь обновлений Telegram сброшена.")
+        except Exception as e:
+            print(f"Ошибка при сбросе очереди: {e}")
+
+    asyncio.run(reset_updates())
     app.run_polling()
