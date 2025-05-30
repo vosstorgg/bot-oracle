@@ -20,7 +20,7 @@ conn = psycopg2.connect(
     dbname=os.getenv("PGDATABASE")
 )
 
-MAX_TOKENS = 1000
+MAX_TOKENS = 1400
 MAX_HISTORY = 10
 
 # --- Default system prompt ---
@@ -101,7 +101,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Отправка "размышляет"
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
-    thinking_msg = await update.message.reply_text("👁‍🗨 Изучаю...")
+    thinking_msg = await update.message.reply_text("〰️ Размышляю...")
 
     try:
         response = await openai_client.chat.completions.create(
@@ -113,7 +113,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply = response.choices[0].message.content
         log_activity(user, chat_id, "dream_interpreted", reply[:300])
     except Exception as e:
-        reply = f"❌ Ошибка OpenAI: {e}"
+        reply = f"❌ Ошибка, повторите ещё раз: {e}"
 
     # Сохраняем ответ
     with conn.cursor() as cur:
@@ -131,24 +131,26 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     log_activity(update.effective_user, str(update.effective_chat.id), "start")
 
     keyboard = [
-        [InlineKeyboardButton("🧾 Рассказать о себе", callback_data="start_profile")],
-        [InlineKeyboardButton("🧠 Что ты умеешь?", callback_data="about")],
-        [InlineKeyboardButton("💎 Задонатить боту", callback_data="donate")],
-        [InlineKeyboardButton("🌙 Рассказать свой сон", callback_data="start_first_dream")]
+        [InlineKeyboardButton("🧾 Познакомимся?", callback_data="start_profile")],
+        [InlineKeyboardButton("🧠 Что я умею", callback_data="about")],
+        [InlineKeyboardButton("💎 Донат на развитие", callback_data="donate")],
+        [InlineKeyboardButton("🌙 Разобрать мой сон", callback_data="start_first_dream")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     try:
-        with open("intro.jpg", "rb") as photo:
+        with open("intro.png", "rb") as photo:
             await context.bot.send_photo(
                 chat_id=chat_id,
                 photo=photo,
-                caption="👋 Привет! Я — Толкователь Снов. Пожалуйста, расскажи о себе, нажав кнопку ниже — это позволит мне лучше понимать для кого я трактую сны. Или можешь просто описать свой сон и я расскажу тебе его скрытые смыслы",
+                caption="💤 Сны – это не просто странные истории. Это язык, на котором бессознательное разговаривает с тобой. Иногда оно шепчет, иногда показывает важное через образы, которые сложно понять с первого взгляда. Но за каждым сном – что-то очень личное, что-то только про тебя.\n\nЧто происходит внутри? Что ты чувствуешь, но не замечаешь? К чему ты готов(а), хотя ещё не знаешь этого?\n\nРасскажи, что тебе приснилось. А я постараюсь перевести это на понятный язык.",
+                
                 reply_markup=reply_markup
             )
+            
     except FileNotFoundError:
         await update.message.reply_text(
-            "👋 Привет! Я — Толкователь Снов. Пожалуйста, расскажи о себе, нажав кнопку ниже — это позволит мне лучше понимать для кого я трактую сны. Или можешь просто описать свой сон и я расскажу тебе его скрытые смыслы",
+            "💤 Сны – это не просто странные истории. Это язык, на котором бессознательное разговаривает с тобой. Иногда оно шепчет, иногда показывает важное через образы, которые сложно понять с первого взгляда. Но за каждым сном – что-то очень личное, что-то только про тебя.\n\nЧто происходит внутри? Что ты чувствуешь, но не замечаешь? К чему ты готов(а), хотя ещё не знаешь этого?\n\nРасскажи, что тебе приснилось. А я постараюсь перевести это на понятный язык.",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
@@ -160,51 +162,52 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     log_activity(update.effective_user, str(update.effective_chat.id), f"button:{query.data}")
 
     if query.data == "about":
-        with open("about.jpg", "rb") as photo:
+        with open("about.png", "rb") as photo:
             await context.bot.send_photo(
                 chat_id=query.message.chat_id,
                 photo=photo,
-                caption="Я Толкователь снов, и я расскажу о себе",
+                caption="Я – чат-бот, который помогает тебе понять свои сны. Моя основа — психологический анализ, прежде всего методика Карла Юнга. Мне можно рассказать любой сон – даже самый короткий, запутанный или необычный – и узнать, что хочет подсказать тебе твоё подсознание.\nЯ бережно помогаю, не осуждаю и не даю готовых ответов, не навязываю смыслов. Я просто рядом — чтобы помочь тебе чуть ближе подойти к себе, к своему внутреннему знанию, к тому, что обычно остаётся в тени./nВот что я умею:\n🌙 Толкую сны с опорой на образы, архетипы и символы\n💬 Учитываю стиль общения, в котором тебе комфортно – кратко или развернуто, серьёзно или с лёгкостью\n🦄 Могу обсудить с тобой символику сна более подробно и ответить на вопросы\n🪐По запросу – учитываю дату и место сна, чтобы добавить астрологический контекст, исходя из положения планет в это время🕊️\nГоворю с тобой бережно и помогаю взглянуть на сон, как на путь к пониманию себя\n\nЕсли хочешь – просто расскажи свой сон. Я здесь, чтобы слушать и истолковывать",
+                
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("🌙 Рассказать свой сон", callback_data="start_first_dream")]
                 ])
             )
     
     elif query.data == "donate":
-        with open("donate.jpg", "rb") as photo:
+        with open("donate.png", "rb") as photo:
             await context.bot.send_photo(
                 chat_id=query.message.chat_id,
                 photo=photo,
-                caption="💸 Спасибо за желание поддержать проект!\n\nВыберите сумму поддержки:",
+                caption="💸 Спасибо за желание поддержать проект! Мне ещё так многому надо научиться!",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Чашка кофе (200 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=200")],
-                    [InlineKeyboardButton("Кофе с тортиком (500 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=500")],
-                    [InlineKeyboardButton("Оплата сервера (1000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=1000")],
-                    [InlineKeyboardButton("Большая благодарность (2000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=2000")],
-                    [InlineKeyboardButton("Огромная благодарность (5000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=5000")]
+                    [InlineKeyboardButton("Перейти к оплате", url="https://pay.cloudtips.ru/p/4f1dd4bf")]
+                    #[InlineKeyboardButton("Кофе с тортиком (500 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=500")],
+                    #[InlineKeyboardButton("Оплата сервера (1000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=1000")],
+                    #[InlineKeyboardButton("Большая благодарность (2000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=2000")],
+                    #[InlineKeyboardButton("Огромная благодарность (5000 ₽)", url="https://yoomoney.ru/to/XXXXXXXX?amount=5000")]
                 ])
             )
 
     elif query.data == "start_profile":
-        with open("quiz.jpg", "rb") as photo:
+        with open("quiz.png", "rb") as photo:
             await context.bot.send_photo(
                 chat_id=query.message.chat_id,
                 photo=photo,
-                caption="🧾 Я хочу лучше вас понимать. Анкета займёт меньше минуты и поможет мне давать более точные трактовки.\n\nНачнём?",
+                caption="🧾 Всего 3 коротких вопроса, которые помогут мне лучше трактовать твои сны.\n\nНачнём?",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Да, начать", callback_data="profile_step:gender")],
-                    [InlineKeyboardButton("Позже", callback_data="profile_step:skip")]
+                    [InlineKeyboardButton("Начинаем", callback_data="profile_step:gender")],
+                    [InlineKeyboardButton("Давай не сейчас", callback_data="profile_step:skip")]
                 ])
             )
 
     elif query.data == "profile_step:gender":
         context.user_data['profile_step'] = "gender"
         await query.message.reply_text(
-            "🧾 Вопрос 1 из 3:\n\nУкажите ваш пол",
+            "Символика снов у женщин и мужчин немного отличается. Ты:",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("Мужской", callback_data="gender:male")],
-                [InlineKeyboardButton("Женский", callback_data="gender:female")],
-                [InlineKeyboardButton("Другое / Неважно", callback_data="gender:other")]
+                [InlineKeyboardButton("Женщина", callback_data="gender:female")],
+                [InlineKeyboardButton("Мужчина", callback_data="gender:male")],
+                [InlineKeyboardButton("Не скажу", callback_data="gender:other")]
             ])
         )
 
@@ -217,7 +220,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['profile_step'] = "age"
 
         await query.message.reply_text(
-            "👤 Вопрос 2 из 3:\n\nУкажите ваш возраст",
+            "Твой возраст тоже важен для толкования",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("До 18", callback_data="age:<18")],
                 [InlineKeyboardButton("18–30", callback_data="age:18-30")],
@@ -232,7 +235,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['profile_step'] = "lucid"
 
         await query.message.reply_text(
-            "🌙 Вопрос 3 из 3:\n\nКак часто вы испытываете осознанные сны?",
+            "Бывают ли у тебя осознанные сны (понимаешь, что спишь и можешь влиять на происходящее во сне)?",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("Часто", callback_data="lucid:часто")],
                 [InlineKeyboardButton("Иногда", callback_data="lucid:иногда")],
@@ -264,7 +267,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.commit()
 
         await query.message.reply_text(
-            "✅ Спасибо! Я записал для себя ответы.\nТеперь я смогу учитывать ваш опыт в интерпретации снов.",
+            "✅ Спасибо!\nТеперь я смогу учитывать ваши ответы в интерпретации снов.",
             reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("🌙 Рассказать свой сон", callback_data="start_first_dream")]
         ])
@@ -272,8 +275,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     elif query.data == "start_first_dream":
         await query.message.reply_text(
-        "✨ Расскажи особенно подробно — кто в твоём сне, где ты был, что чувствовал. "
-        "Чем больше деталей, тем точнее получится интерпретация. Я весь внимание..."
+        "✨ Расскажи мне свой сон, даже если он странный, запутанный или пугающий – так подробно, как можешь. Опиши, по возможности, атмосферу и эмоции, которые его сопровождали. Если хочешь, чтобы я учёл положение планет в толковании – укажи дату и примерное место сна (можно по ближайшему крупному городу)\n\nНачнём?"
     )
 
 
