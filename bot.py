@@ -105,7 +105,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = await openai_client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "system", "content": personalized_prompt}] + history,
-            temperature=0.4,
+            temperature=0.45,
             max_tokens=MAX_TOKENS
         )
         reply = response.choices[0].message.content
