@@ -8,6 +8,8 @@ from telegram.ext import (
 )
 from openai import AsyncOpenAI
 
+today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
 # --- OpenAI client ---
 openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -20,7 +22,7 @@ conn = psycopg2.connect(
     dbname=os.getenv("PGDATABASE")
 )
 
-MAX_TOKENS = 1400
+MAX_TOKENS = 1000
 MAX_HISTORY = 10
 
 # --- Default system prompt ---
@@ -95,9 +97,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             profile_info += f"Lucid dream experience: {lucid}. "
 
     # Собираем персонализированный prompt
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     personalized_prompt = DEFAULT_SYSTEM_PROMPT
+    personalized_prompt += f"\n\n# Current date\nToday is {today_str}."
     if profile_info:
         personalized_prompt += f"\n\n# User context\n{profile_info.strip()}"
+
 
     # Отправка "размышляет"
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
@@ -111,6 +116,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             max_tokens=MAX_TOKENS
         )
         reply = response.choices[0].message.content
+        
         log_activity(user, chat_id, "dream_interpreted", reply[:300])
     except Exception as e:
         reply = f"❌ Ошибка, повторите ещё раз: {e}"
