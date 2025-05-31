@@ -46,6 +46,28 @@ def log_activity(user, chat_id, action, content=""):
         ))
     conn.commit()
 
+# --- Обновление статистики ---
+def update_user_stats(user, chat_id: str, message_text: str):
+    username = f"@{user.username}" if user.username else None
+
+    with conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO user_stats (chat_id, username, messages_sent, symbols_sent, updated_at)
+            VALUES (%s, %s, 1, %s, now())
+            ON CONFLICT (chat_id) DO UPDATE
+            SET 
+                messages_sent = user_stats.messages_sent + 1,
+                symbols_sent = user_stats.symbols_sent + %s,
+                username = COALESCE(EXCLUDED.username, user_stats.username),
+                updated_at = now()
+        """, (
+            chat_id,
+            username,
+            len(message_text),
+            len(message_text)
+        ))
+    conn.commit()
+
 # --- Обработчик сообщений ---
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
@@ -54,6 +76,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     log_activity(user, chat_id, "message", user_message)
     log_activity(user, chat_id, "gpt_request", f"model=gpt-4o, temp=0.4, max_tokens={MAX_TOKENS}")
+
+    update_user_stats(user, chat_id, user_message)
 
     # Сохраняем сообщение пользователя
     with conn.cursor() as cur:
