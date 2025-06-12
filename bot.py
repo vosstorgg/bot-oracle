@@ -68,6 +68,24 @@ def update_user_stats(user, chat_id: str, message_text: str):
         ))
     conn.commit()
 
+def increment_start_count(user, chat_id: str):
+    username = f"@{user.username}" if user.username else None
+    with conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO user_stats (chat_id, username, starts_count, updated_at)
+            VALUES (%s, %s, 1, now())
+            ON CONFLICT (chat_id) DO UPDATE
+            SET 
+                starts_count = user_stats.starts_count + 1,
+                username = COALESCE(EXCLUDED.username, user_stats.username),
+                updated_at = now()
+        """, (
+            chat_id,
+            username
+        ))
+    conn.commit()
+
+
 # --- Обработчик сообщений ---
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
@@ -152,6 +170,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user = update.effective_user
     log_activity(update.effective_user, str(update.effective_chat.id), "start")
+    increment_start_count(user, str(chat_id))
 
     keyboard = [
         [InlineKeyboardButton("🧾 Познакомимся?", callback_data="start_profile")],
