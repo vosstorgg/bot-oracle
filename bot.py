@@ -181,6 +181,13 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+async def start_first_dream_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "✨ Расскажи мне свой сон, даже если он странный, запутанный или пугающий – так подробно, как можешь. "
+        "Опиши атмосферу и эмоции. "
+        "Если хочешь, чтобы я учёл положение планет в толковании – укажи дату и примерное место сна (можно просто город)."
+    )
+
     try:
         with open("intro.png", "rb") as photo:
             await context.bot.send_photo(
@@ -330,14 +337,22 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(CommandHandler("start_first_dream", start_first_dream_command))
 
-    async def reset_updates(app):
-        try:
-            await app.bot.get_updates(offset=-1)
-            print("✅ Очередь обновлений Telegram сброшена.")
-        except Exception as e:
-            print(f"⚠️ Ошибка сброса очереди: {e}")
+from telegram import BotCommand
 
-    app.post_init = reset_updates
+async def post_init(app):
+    try:
+        await app.bot.get_updates(offset=-1)
+        print("✅ Очередь обновлений Telegram сброшена.")
+    except Exception as e:
+        print(f"⚠️ Ошибка сброса очереди: {e}")
+
+    await app.bot.set_my_commands([
+        BotCommand("start_first_dream", "🌙 Разобрать мой сон")
+    ])
+    print("📌 Команда /start_first_dream добавлена в меню Telegram")
+
+app.post_init = post_init
 
     app.run_polling()
