@@ -354,5 +354,4 @@ async def post_init(app):
     print("📌 Команда /start_first_dream добавлена в меню Telegram")
 
 app.post_init = post_init
-
-    app.run_polling()
+app.run_polling()
