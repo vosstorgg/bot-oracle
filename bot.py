@@ -180,7 +180,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🌙 Разобрать мой сон", callback_data="start_first_dream")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-
+    )
+    
 async def start_first_dream_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "✨ Расскажи мне свой сон, даже если он странный, запутанный или пугающий – так подробно, как можешь. "
