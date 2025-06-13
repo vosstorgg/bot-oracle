@@ -1,10 +1,10 @@
 import os
 import psycopg2
 from datetime import datetime, timezone
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, ContextTypes,
-    MessageHandler, CommandHandler, CallbackQueryHandler, ReplyKeyboardMarkup
+    MessageHandler, CommandHandler, CallbackQueryHandler
 )
 from openai import AsyncOpenAI
 
