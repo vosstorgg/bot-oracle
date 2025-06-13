@@ -164,49 +164,48 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if profile_info:
         personalized_prompt += f"\n\n# User context\n{profile_info.strip()}"
 
-
-import traceback
-
-# Отправляем "Размышляю..."
-thinking_msg = await update.message.reply_text("〰️ Размышляю...")
-
-try:
-    # GPT-запрос
-    response = await openai_client.chat.completions.create(
-        model="gpt-4o",
-        messages=messages,
-        temperature=0.6
-    )
-    reply = response.choices[0].message.content
-except Exception as e:
-    # Ошибка в GPT
-    print("❌ Ошибка при запросе в OpenAI:", e)
-    traceback.print_exc()
-    reply = f"❌ Не удалось обработать сон. Попробуйте ещё раз.\n\n`{str(e)}`"
-
-# Очищаем Markdown
-safe_reply = clean_markdown(reply)
-
-# Пробуем заменить "Размышляю..." на ответ
-try:
-    await thinking_msg.edit_text(
-        text=safe_reply[:4000],
-        parse_mode='Markdown',
-        reply_markup=MAIN_MENU
-    )
-except Exception as e:
-    print("❌ Ошибка при edit_text:")
-    traceback.print_exc()
-
-    # Fallback — просто новое сообщение
+    import traceback
+    
+    # Отправляем "Размышляю..."
+    thinking_msg = await update.message.reply_text("〰️ Размышляю...")
+    
     try:
-        await update.message.reply_text(
+        # GPT-запрос
+        response = await openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            temperature=0.6
+        )
+        reply = response.choices[0].message.content
+    except Exception as e:
+        # Ошибка в GPT
+        print("❌ Ошибка при запросе в OpenAI:", e)
+        traceback.print_exc()
+        reply = f"❌ Не удалось обработать сон. Попробуйте ещё раз.\n\n`{str(e)}`"
+    
+    # Очищаем Markdown
+    safe_reply = clean_markdown(reply)
+    
+    # Пробуем заменить "Размышляю..." на ответ
+    try:
+        await thinking_msg.edit_text(
             text=safe_reply[:4000],
+            parse_mode='Markdown',
             reply_markup=MAIN_MENU
         )
-    except Exception as e2:
-        print("❌ Ошибка при fallback reply_text:")
+    except Exception as e:
+        print("❌ Ошибка при edit_text:")
         traceback.print_exc()
+    
+        # Fallback — просто новое сообщение
+        try:
+            await update.message.reply_text(
+                text=safe_reply[:4000],
+                reply_markup=MAIN_MENU
+            )
+        except Exception as e2:
+            print("❌ Ошибка при fallback reply_text:")
+            traceback.print_exc()
 
 
 
