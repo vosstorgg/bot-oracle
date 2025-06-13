@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     ApplicationBuilder, ContextTypes,
-    MessageHandler, CommandHandler, CallbackQueryHandler, filters
+    MessageHandler, CommandHandler, CallbackQueryHandler, Аilters, ReplyKeyboardMarkup
 )
 from openai import AsyncOpenAI
 
@@ -30,6 +30,16 @@ DEFAULT_SYSTEM_PROMPT = (
     "You are a qualified dream analyst trained in the methodology of C.G. Jung, with deep knowledge of astrology and esotericism, working within the Western psychological tradition. You interpret dreams as unique messages from the unconscious, drawing on archetypes, symbols, and the collective unconscious. You may reference mythology, astrology, or esoteric concepts metaphorically, if they enrich meaning and maintain internal coherence. Use simple, clear, human language. Avoid quotation marks for symbols and refrain from using specialized terminology. Your task is to identify key images, archetypes, and symbols, and explain their significance for inner development. You do not predict the future, give advice, or act as a therapist. Interpretations must be hypothetical, respectful, and free from rigid or generic meanings. If the user provides the date and location of the dream and requests it, include metaphorical astrological context (e.g. Moon phase, the current planetary positions). If the dream is brief, you may ask 1–3 clarifying questions. If the user declines, interpret only what is available. Maintain a supportive and respectful tone. Match the user's style—concise or detailed, light or deep. Never use obscene language, even if requested; replace it with appropriate, standard synonyms. Do not engage in unrelated topics—gently guide the conversation back to dream analysis. Use only Telegram Markdown formatting (e.g. *bold*, _italic_, `code`) and emojis to illustrate symbols (e.g. 🌑, 👁, 🪞). Do not use HTML. "
 "\n\n# User context\n"   
 )
+
+# --- Default menu ---
+MAIN_MENU = ReplyKeyboardMarkup(
+    keyboard=[
+        ["🌙 Разобрать мой сон"]
+    ],
+    resize_keyboard=True,
+    one_time_keyboard=False
+)
+
 
 # --- Лог активности ---
 def log_activity(user, chat_id, action, content=""):
@@ -89,6 +99,11 @@ def increment_start_count(user, chat_id: str):
 # --- Обработчик сообщений ---
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
+
+    if user_message.strip() == "🌙 Рассказать сон":
+    await start_first_dream_command(update, context)
+    return
+
     chat_id = str(update.effective_chat.id)
     user = update.effective_user
 
@@ -338,9 +353,6 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_handler(CommandHandler("start_first_dream", start_first_dream_command))
-
-from telegram import BotCommand
 
 async def post_init(app):
     try:
@@ -348,11 +360,6 @@ async def post_init(app):
         print("✅ Очередь обновлений Telegram сброшена.")
     except Exception as e:
         print(f"⚠️ Ошибка сброса очереди: {e}")
-
-    await app.bot.set_my_commands([
-        BotCommand("start_first_dream", "🌙 Разобрать мой сон")
-    ])
-    print("📌 Команда /start_first_dream добавлена в меню Telegram")
 
 app.post_init = post_init
 app.run_polling()
