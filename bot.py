@@ -191,6 +191,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     safe_reply = clean_markdown(reply)
 
+    # Безопасный Markdown
+    safe_reply = clean_markdown(reply)
+    
     # Меняем сообщение "Размышляю..." на ответ
     try:
         await thinking_msg.edit_text(
@@ -201,7 +204,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         print(f"❌ Ошибка при edit_text: {e}")
         try:
-            # Отправим как новое сообщение (если edit_text не удался)
             await update.message.reply_text(
                 text=safe_reply[:4000],
                 reply_markup=MAIN_MENU
