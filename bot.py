@@ -101,8 +101,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
 
     if user_message.strip() == "🌙 Рассказать сон":
-    await start_first_dream_command(update, context)
-    return
+        await start_first_dream_command(update, context)
+        return
 
     chat_id = str(update.effective_chat.id)
     user = update.effective_user
