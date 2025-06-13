@@ -13,6 +13,7 @@ today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 # --- OpenAI client ---
 openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+
 # --- PostgreSQL connection ---
 conn = psycopg2.connect(
     host=os.getenv("PGHOST"),
