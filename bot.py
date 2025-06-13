@@ -215,6 +215,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=reply_markup,
                 parse_mode='Markdown'
             )
+    
     except FileNotFoundError:
         await update.message.reply_text(
             "💫 Сны – это язык бессознательного. "
@@ -225,10 +226,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
         
-await update.message.reply_text(
-    text="‎\u2060",  # специальный невидимый символ (юникодное пробелоподобное)
-    reply_markup=MAIN_MENU
-)
+    await update.message.reply_text(
+        text="‎\u2060",  # специальный невидимый символ (юникодное пробелоподобное)
+        reply_markup=MAIN_MENU
+    )
 
 
 async def start_first_dream_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
