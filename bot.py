@@ -221,7 +221,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Иногда оно шепчет, иногда показывает важное через образы, которые сложно понять с первого взгляда. "
             "Но за каждым сном – что-то очень личное, что-то только про тебя.\n\n"
             "Нажми кнопку ниже или просто начни писать свой сон."
-            ),
+        ),
         
         reply_markup=reply_markup,
         parse_mode='Markdown'
