@@ -191,6 +191,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     safe_reply = clean_markdown(reply)
 
+    # Меняем сообщение
     try:
         await thinking_msg.edit_text(
             text=safe_reply[:4000],
