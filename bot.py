@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     ApplicationBuilder, ContextTypes,
-    MessageHandler, CommandHandler, CallbackQueryHandler, filters, ReplyKeyboardMarkup
+    MessageHandler, CommandHandler, CallbackQueryHandler, ReplyKeyboardMarkup
 )
 from openai import AsyncOpenAI
 
