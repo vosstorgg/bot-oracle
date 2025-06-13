@@ -225,7 +225,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
         
-        await update.message.reply_text(
+await update.message.reply_text(
     text="‎\u2060",  # специальный невидимый символ (юникодное пробелоподобное)
     reply_markup=MAIN_MENU
 )
