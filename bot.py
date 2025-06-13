@@ -165,51 +165,49 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         personalized_prompt += f"\n\n# User context\n{profile_info.strip()}"
 
 
-    # Отправка "размышляет"
-    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
-    thinking_msg = await update.message.reply_text("〰️ Размышляю...")
+import traceback
 
+# Отправляем "Размышляю..."
+thinking_msg = await update.message.reply_text("〰️ Размышляю...")
+
+try:
+    # GPT-запрос
+    response = await openai_client.chat.completions.create(
+        model="gpt-4o",
+        messages=messages,
+        temperature=0.6
+    )
+    reply = response.choices[0].message.content
+except Exception as e:
+    # Ошибка в GPT
+    print("❌ Ошибка при запросе в OpenAI:", e)
+    traceback.print_exc()
+    reply = f"❌ Не удалось обработать сон. Попробуйте ещё раз.\n\n`{str(e)}`"
+
+# Очищаем Markdown
+safe_reply = clean_markdown(reply)
+
+# Пробуем заменить "Размышляю..." на ответ
+try:
+    await thinking_msg.edit_text(
+        text=safe_reply[:4000],
+        parse_mode='Markdown',
+        reply_markup=MAIN_MENU
+    )
+except Exception as e:
+    print("❌ Ошибка при edit_text:")
+    traceback.print_exc()
+
+    # Fallback — просто новое сообщение
     try:
-        response = await openai_client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "system", "content": personalized_prompt}] + history,
-            temperature=0.45,
-            max_tokens=MAX_TOKENS
-        )
-        reply = response.choices[0].message.content
-        
-        log_activity(user, chat_id, "dream_interpreted", reply[:300])
-    except Exception as e:
-        reply = f"❌ Ошибка, повторите ещё раз: {e}"
-
-    # Сохраняем ответ
-    with conn.cursor() as cur:
-        cur.execute("""
-            INSERT INTO messages (chat_id, role, content, timestamp)
-            VALUES (%s, %s, %s, %s)
-        """, (chat_id, "assistant", reply, datetime.now(timezone.utc)))
-
-    safe_reply = clean_markdown(reply)
-
-    # Безопасный Markdown
-    safe_reply = clean_markdown(reply)
-    
-    # Меняем сообщение "Размышляю..." на ответ
-    try:
-        await thinking_msg.edit_text(
+        await update.message.reply_text(
             text=safe_reply[:4000],
-            parse_mode='Markdown',
             reply_markup=MAIN_MENU
         )
-    except Exception as e:
-        print(f"❌ Ошибка при edit_text: {e}")
-        try:
-            await update.message.reply_text(
-                text=safe_reply[:4000],
-                reply_markup=MAIN_MENU
-            )
-        except Exception as e2:
-            print(f"❌ Ошибка при reply_text fallback: {e2}")
+    except Exception as e2:
+        print("❌ Ошибка при fallback reply_text:")
+        traceback.print_exc()
+
 
 
 
