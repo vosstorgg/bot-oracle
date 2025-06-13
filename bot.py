@@ -99,13 +99,13 @@ def increment_start_count(user, chat_id: str):
 # --- Обработчик сообщений ---
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
-
-    if user_message.strip() in ["🌙 Разобрать мой сон", "🌙 Рассказать сон"]:
+    chat_id = str(update.effective_chat.id)
+    user = update.effective_user
+    
+    if user_message == "🌙 Разобрать мой сон":
         await start_first_dream_command(update, context)
         return
 
-    chat_id = str(update.effective_chat.id)
-    user = update.effective_user
 
     log_activity(user, chat_id, "message", user_message)
     log_activity(user, chat_id, "gpt_request", f"model=gpt-4o, temp=0.4, max_tokens={MAX_TOKENS}")
