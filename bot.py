@@ -212,7 +212,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "Но за каждым сном – что-то очень личное, что-то только про тебя.\n\n"
                     "Нажми кнопку ниже или просто начни писать свой сон."
                 ),
-                reply_markup=MAIN_MENU,
+                reply_markup=reply_markup,
                 parse_mode='Markdown'
             )
     
@@ -222,10 +222,14 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Иногда оно шепчет, иногда показывает важное через образы, которые сложно понять с первого взгляда. "
             "Но за каждым сном – что-то очень личное, что-то только про тебя.\n\n"
             "Нажми кнопку ниже или просто начни писать свой сон.",
-            reply_markup=MAIN_MENU,
+            reply_markup=reply_markup,
             parse_mode='Markdown'
         )
-    
+        
+    await update.message.reply_text(
+        text="\u2060",  # невидимый символ, чтобы не выводить текст
+        reply_markup=MAIN_MENU
+    )
 
 async def start_first_dream_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
