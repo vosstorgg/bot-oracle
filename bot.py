@@ -26,13 +26,6 @@ conn = psycopg2.connect(
 MAX_TOKENS = 1400
 MAX_HISTORY = 10
 
-# --- Очистка Markdown ---
-import re
-
-def clean_markdown(text: str) -> str:
-    return re.sub(r"[*_`[\]()~]", "", text)
-
-
 # --- Default system prompt ---
 DEFAULT_SYSTEM_PROMPT = (
     "You are a qualified dream analyst trained in the methodology of C.G. Jung, with deep knowledge of astrology and esotericism, working within the Western psychological tradition. You interpret dreams as unique messages from the unconscious, drawing on archetypes, symbols, and the collective unconscious. You may reference mythology, astrology, or esoteric concepts metaphorically, if they enrich meaning and maintain internal coherence. Use simple, clear, human language. Avoid quotation marks for symbols and refrain from using specialized terminology. Your task is to identify key images, archetypes, and symbols, and explain their significance for inner development. You do not predict the future, give advice, or act as a therapist. Interpretations must be hypothetical, respectful, and free from rigid or generic meanings. If the user provides the date and location of the dream and requests it, include metaphorical astrological context (e.g. Moon phase, the current planetary positions). If the dream is brief, you may ask 1–3 clarifying questions. If the user declines, interpret only what is available. Maintain a supportive and respectful tone. Match the user's style—concise or detailed, light or deep. Never use obscene language, even if requested; replace it with appropriate, standard synonyms. Do not engage in unrelated topics—gently guide the conversation back to dream analysis. Use only Telegram Markdown formatting (e.g. *bold*, _italic_, `code`) and emojis to illustrate symbols (e.g. 🌑, 👁, 🪞). Do not use HTML. "
@@ -165,50 +158,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if profile_info:
         personalized_prompt += f"\n\n# User context\n{profile_info.strip()}"
 
-    import traceback
-    
-    # Отправляем "Размышляю..."
+
+    # Отправка "размышляет"
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
     thinking_msg = await update.message.reply_text("〰️ Размышляю...")
-    
+
     try:
-        # GPT-запрос
         response = await openai_client.chat.completions.create(
             model="gpt-4o",
-            messages=messages,
-            temperature=0.6
+            messages=[{"role": "system", "content": personalized_prompt}] + history,
+            temperature=0.45,
+            max_tokens=MAX_TOKENS
         )
         reply = response.choices[0].message.content
+        
+        log_activity(user, chat_id, "dream_interpreted", reply[:300])
     except Exception as e:
-        # Ошибка в GPT
-        print("❌ Ошибка при запросе в OpenAI:", e)
-        traceback.print_exc()
-        reply = f"❌ Не удалось обработать сон. Попробуйте ещё раз.\n\n`{str(e)}`"
-    
-    # Очищаем Markdown
-    safe_reply = clean_markdown(reply)
-    
-    # Пробуем заменить "Размышляю..." на ответ
-    try:
-        await thinking_msg.edit_text(
-            text=safe_reply[:4000],
-            parse_mode='Markdown',
-            reply_markup=MAIN_MENU
-        )
-    except Exception as e:
-        print("❌ Ошибка при edit_text:")
-        traceback.print_exc()
-    
-        # Fallback — просто новое сообщение
-        try:
-            await update.message.reply_text(
-                text=safe_reply[:4000],
-                reply_markup=MAIN_MENU
-            )
-        except Exception as e2:
-            print("❌ Ошибка при fallback reply_text:")
-            traceback.print_exc()
+        reply = f"❌ Ошибка, повторите ещё раз: {e}"
 
+    # Сохраняем ответ
+    with conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO messages (chat_id, role, content, timestamp)
+            VALUES (%s, %s, %s, %s)
+        """, (chat_id, "assistant", reply, datetime.now(timezone.utc)))
 
+    await thinking_msg.edit_text(reply, parse_mode='Markdown')
 
 
 # --- Обработчик команды /start ---
