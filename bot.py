@@ -182,7 +182,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             VALUES (%s, %s, %s, %s)
         """, (chat_id, "assistant", reply, datetime.now(timezone.utc)))
 
-    await thinking_msg.edit_text(reply, parse_mode='Markdown')
+    await thinking_msg.edit_text(
+        text=reply,
+        parse_mode='Markdown',
+        reply_markup=MAIN_MENU
+    )
 
 
 # --- Обработчик команды /start ---
