@@ -196,13 +196,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-async def start_first_dream_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "✨ Расскажи мне свой сон, даже если он странный, запутанный или пугающий – так подробно, как можешь. "
-        "Опиши атмосферу и эмоции. "
-        "Если хочешь, чтобы я учёл положение планет в толковании – укажи дату и примерное место сна (можно просто город)."
-    )
-
     try:
         with open("intro.png", "rb") as photo:
             await context.bot.send_photo(
@@ -219,6 +212,13 @@ async def start_first_dream_command(update: Update, context: ContextTypes.DEFAUL
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
+
+async def start_first_dream_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "✨ Расскажи мне свой сон, даже если он странный, запутанный или пугающий – так подробно, как можешь. "
+        "Опиши атмосферу и эмоции. "
+        "Если хочешь, чтобы я учёл положение планет в толковании – укажи дату и примерное место сна (можно просто город)."
+    )
 
 # --- Обработчик кнопок ---
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
