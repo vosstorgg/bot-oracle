@@ -230,7 +230,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         
     await update.message.reply_text(
-        text="Просто опиши свой сон - я начну трактование",
+        text="Просто опиши свой сон и я начну трактование",
         reply_markup=MAIN_MENU
     )
 
