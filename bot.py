@@ -1,7 +1,7 @@
 import os
 import psycopg2
 from datetime import datetime, timezone
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, ContextTypes,
     MessageHandler, CommandHandler, CallbackQueryHandler, filters
@@ -22,14 +22,24 @@ conn = psycopg2.connect(
     dbname=os.getenv("PGDATABASE")
 )
 
-MAX_TOKENS = 1000
+MAX_TOKENS = 1400
 MAX_HISTORY = 10
 
 # --- Default system prompt ---
 DEFAULT_SYSTEM_PROMPT = (
     "You are a qualified dream analyst trained in the methodology of C.G. Jung, with deep knowledge of astrology and esotericism, working within the Western psychological tradition. You interpret dreams as unique messages from the unconscious, drawing on archetypes, symbols, and the collective unconscious. You may reference mythology, astrology, or esoteric concepts metaphorically, if they enrich meaning and maintain internal coherence. Use simple, clear, human language. Avoid quotation marks for symbols and refrain from using specialized terminology. Your task is to identify key images, archetypes, and symbols, and explain their significance for inner development. You do not predict the future, give advice, or act as a therapist. Interpretations must be hypothetical, respectful, and free from rigid or generic meanings. If the user provides the date and location of the dream and requests it, include metaphorical astrological context (e.g. Moon phase, the current planetary positions). If the dream is brief, you may ask 1–3 clarifying questions. If the user declines, interpret only what is available. Maintain a supportive and respectful tone. Match the user's style—concise or detailed, light or deep. Never use obscene language, even if requested; replace it with appropriate, standard synonyms. Do not engage in unrelated topics—gently guide the conversation back to dream analysis. Use only Telegram Markdown formatting (e.g. *bold*, _italic_, `code`) and emojis to illustrate symbols (e.g. 🌑, 👁, 🪞). Do not use HTML. "
-"\n\n# User context\n"   
+"\n\n# User context\n" "Use a paragraph of text to suggest the dream's emotional tone. Try to end your analysis by inviting the user to reflect or respond."   
 )
+
+# --- Default menu ---
+MAIN_MENU = ReplyKeyboardMarkup(
+    keyboard=[
+        ["🌙 Разобрать мой сон"]
+    ],
+    resize_keyboard=True,
+    one_time_keyboard=False
+)
+
 
 # --- Лог активности ---
 def log_activity(user, chat_id, action, content=""):
@@ -91,6 +101,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     chat_id = str(update.effective_chat.id)
     user = update.effective_user
+    
+    if user_message == "🌙 Разобрать мой сон":
+        await start_first_dream_command(update, context)
+        return
+
 
     log_activity(user, chat_id, "message", user_message)
     log_activity(user, chat_id, "gpt_request", f"model=gpt-4o, temp=0.4, max_tokens={MAX_TOKENS}")
@@ -165,13 +180,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await thinking_msg.edit_text(reply, parse_mode='Markdown')
 
+
 # --- Обработчик команды /start ---
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user = update.effective_user
-    log_activity(update.effective_user, str(update.effective_chat.id), "start")
+
+    # Логируем событие и увеличиваем счётчик стартов
+    log_activity(user, str(chat_id), "start")
     increment_start_count(user, str(chat_id))
 
+    # Inline-кнопки под приветствием
     keyboard = [
         [InlineKeyboardButton("🧾 Познакомимся?", callback_data="start_profile")],
         [InlineKeyboardButton("🔮 Что я умею", callback_data="about")],
@@ -181,29 +200,38 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-async def start_first_dream_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "✨ Расскажи мне свой сон, даже если он странный, запутанный или пугающий – так подробно, как можешь. "
-        "Опиши атмосферу и эмоции. "
-        "Если хочешь, чтобы я учёл положение планет в толковании – укажи дату и примерное место сна (можно просто город)."
-    )
-
+    # Отправляем приветствие с фото и кнопками
     try:
         with open("intro.png", "rb") as photo:
             await context.bot.send_photo(
                 chat_id=chat_id,
                 photo=photo,
-                caption="💫 Сны – это не просто странные истории. Это язык, на котором бессознательное разговаривает с тобой. Иногда оно шепчет, иногда показывает важное через образы, которые сложно понять с первого взгляда. Но за каждым сном – что-то очень личное, что-то только про тебя.\n\nЧто происходит внутри? Что ты чувствуешь, но не замечаешь? К чему ты готов(а), хотя ещё не знаешь этого?\n\nРасскажи, что тебе приснилось. А я постараюсь перевести это на понятный язык.",
-                
-                reply_markup=reply_markup
+                caption=(
+                    "💫 Сны – это язык бессознательного. "
+                    "Иногда оно шепчет, иногда показывает важное через образы, которые сложно понять с первого взгляда. "
+                    "Но за каждым сном – что-то очень личное, что-то только про тебя.\n\n"
+                    "Нажми кнопку ниже или просто начни писать свой сон."
+                ),
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
             )
-            
     except FileNotFoundError:
         await update.message.reply_text(
-            "💤 Сны – это не просто странные истории. Это язык, на котором бессознательное разговаривает с тобой. Иногда оно шепчет, иногда показывает важное через образы, которые сложно понять с первого взгляда. Но за каждым сном – что-то очень личное, что-то только про тебя.\n\nЧто происходит внутри? Что ты чувствуешь, но не замечаешь? К чему ты готов(а), хотя ещё не знаешь этого?\n\nРасскажи, что тебе приснилось. А я постараюсь перевести это на понятный язык.",
+            "💫 Сны – это язык бессознательного. "
+            "Иногда оно шепчет, иногда показывает важное через образы, которые сложно понять с первого взгляда. "
+            "Но за каждым сном – что-то очень личное, что-то только про тебя.\n\n"
+            "Нажми кнопку ниже или просто начни писать свой сон.",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
+
+async def start_first_dream_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "✨ Расскажи мне свой сон, даже если он странный, запутанный или пугающий – так подробно, как можешь. "
+        "Опиши атмосферу, эмоции, персонажей и, если хочешь, укажи дату и место сна (можно просто город).",
+        reply_markup=MAIN_MENU  # чтобы кнопка осталась
+    )
+
 
 # --- Обработчик кнопок ---
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -325,7 +353,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     elif query.data == "start_first_dream":
         await query.message.reply_text(
-        "✨ Расскажи мне свой сон, даже если он странный, запутанный или пугающий – так подробно, как можешь. Опиши, по возможности, атмосферу и эмоции, которые его сопровождали. Если хочешь, чтобы я учёл положение планет в толковании – укажи дату и примерное место сна (можно по ближайшему крупному городу)\n\nНачнём?"
+        "✨ Расскажи мне свой сон, даже если он странный, запутанный или пугающий – так подробно, как можешь. Опиши, по возможности, атмосферу и эмоции, которые его сопровождали. Если хочешь, чтобы я учёл положение планет в толковании – укажи дату и примерное место сна (можно по ближайшему крупному городу)"
     )
 
 
@@ -337,21 +365,23 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_handler(CommandHandler("start_first_dream", start_first_dream_command))
 
 from telegram import BotCommand
 
 async def post_init(app):
     try:
-        await app.bot.get_updates(offset=-1)
-        print("✅ Очередь обновлений Telegram сброшена.")
-    except Exception as e:
-        print(f"⚠️ Ошибка сброса очереди: {e}")
+        # Очищаем Telegram-меню (≡)
+        await app.bot.set_my_commands([])
 
-    await app.bot.set_my_commands([
-        BotCommand("start_first_dream", "🌙 Разобрать мой сон")
-    ])
-    print("📌 Команда /start_first_dream добавлена в меню Telegram")
+        # Сбрасываем очередь обновлений (чтобы не было конфликтов)
+        await app.bot.get_updates(offset=-1)
+
+        print("✅ Очередь Telegram сброшена, команды очищены.")
+        
+    except Exception as e:
+        print(f"⚠️ Ошибка сброса очереди {e}")
+
 
 app.post_init = post_init
+
 app.run_polling()
