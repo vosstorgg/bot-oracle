@@ -22,7 +22,7 @@ conn = psycopg2.connect(
     dbname=os.getenv("PGDATABASE")
 )
 
-MAX_TOKENS = 1000
+MAX_TOKENS = 1400
 MAX_HISTORY = 10
 
 # --- Default system prompt ---
@@ -225,10 +225,11 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
 
-    # Показываем постоянную Reply-клавиатуру под полем ввода
+async def start_first_dream_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👇 Или используй кнопку под строкой ввода:",
-        reply_markup=MAIN_MENU
+        "✨ Расскажи мне свой сон, даже если он странный, запутанный или пугающий – так подробно, как можешь. "
+        "Опиши атмосферу, эмоции, персонажей и, если хочешь, укажи дату и место сна (можно просто город).",
+        reply_markup=MAIN_MENU  # чтобы кнопка осталась
     )
 
 
