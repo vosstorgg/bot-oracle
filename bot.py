@@ -100,7 +100,7 @@ def increment_start_count(user, chat_id: str):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
 
-    if user_message.strip() == "🌙 Рассказать сон":
+    if user_message.strip() in ["🌙 Разобрать мой сон", "🌙 Рассказать сон"]:
         await start_first_dream_command(update, context)
         return
 
@@ -365,12 +365,22 @@ if __name__ == "__main__":
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
+from telegram import BotCommand
+
 async def post_init(app):
     try:
+        # Очищаем Telegram-меню (≡)
+        await app.bot.set_my_commands([])
+
+        # Сбрасываем очередь обновлений (чтобы не было конфликтов)
         await app.bot.get_updates(offset=-1)
-        print("✅ Очередь обновлений Telegram сброшена.")
+
+        print("✅ Очередь Telegram сброшена, команды очищены.")
+        
     except Exception as e:
-        print(f"⚠️ Ошибка сброса очереди: {e}")
+        print(f"⚠️ Ошибка сброса очереди {e}")
+
 
 app.post_init = post_init
+
 app.run_polling()
