@@ -198,7 +198,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🧾 Познакомимся?", callback_data="start_profile")],
         [InlineKeyboardButton("🔮 Что я умею", callback_data="about")],
-        [InlineKeyboardButton("💬 Подписаться на канал автора", url="https://t.me/dream_sense_chat")],
+        [InlineKeyboardButton("💬 Подписаться на канал автора", url="https://t.me/N_W_passage")],
         [InlineKeyboardButton("💎 Донат на развитие", callback_data="donate")],
         [InlineKeyboardButton("🌙 Разобрать мой сон", callback_data="start_first_dream")]
     ]
