@@ -29,13 +29,14 @@ MAX_HISTORY = 10
 # --- Default system prompt ---
 DEFAULT_SYSTEM_PROMPT = (
     "You are a qualified dream analyst trained in the methodology of C.G. Jung, with deep knowledge of astrology and esotericism, working within the Western psychological tradition. You interpret dreams as unique messages from the unconscious, drawing on archetypes, symbols, and the collective unconscious. You may reference mythology, astrology, or esoteric concepts metaphorically, if they enrich meaning and maintain internal coherence. Use simple, clear, human language. Avoid quotation marks for symbols and refrain from using specialized terminology. Your task is to identify key images, archetypes, and symbols, and explain their significance for inner development. You do not predict the future, give advice, or act as a therapist. Interpretations must be hypothetical, respectful, and free from rigid or generic meanings. If the user provides the date and location of the dream and requests it, include metaphorical astrological context (e.g. Moon phase, the current planetary positions). If the dream is brief, you may ask 1–3 clarifying questions. If the user declines, interpret only what is available. Maintain a supportive and respectful tone. Match the user's style—concise or detailed, light or deep. Never use obscene language, even if requested; replace it with appropriate, standard synonyms. Do not engage in unrelated topics—gently guide the conversation back to dream analysis. Use only Telegram Markdown formatting (e.g. *bold*, _italic_, `code`) and emojis to illustrate symbols (e.g. 🌑, 👁, 🪞). Do not use HTML. "
-"\n\n# User context\n" "Use a paragraph of text to suggest the dream's emotional tone. Try to end your analysis by inviting the user to reflect or respond."   
+"\n\n# User context\n" "Use a paragraph of text to suggest the dream's emotional tone. Try to end your analysis by inviting the user to reflect or respond. Speak Russian using informal 'ты' form with users."   
 )
 
 # --- Default menu ---
 MAIN_MENU = ReplyKeyboardMarkup(
     keyboard=[
-        ["🌙 Разобрать мой сон"]
+        ["🌙 Разобрать мой сон"],
+        ["💬 Подписаться на канал автора"]
     ],
     resize_keyboard=True,
     one_time_keyboard=False
@@ -107,6 +108,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await start_first_dream_command(update, context)
         return
 
+    if user_message == "💬 Подписаться на канал автора":
+        await channel_view_command(update, context)
+        return
 
     log_activity(user, chat_id, "message", user_message)
     log_activity(user, chat_id, "gpt_request", f"model=gpt-4o, temp=0.4, max_tokens={MAX_TOKENS}")
@@ -195,7 +199,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🧾 Познакомимся?", callback_data="start_profile")],
         [InlineKeyboardButton("🔮 Что я умею", callback_data="about")],
-        [InlineKeyboardButton("💬 Поделиться впечатлениями", url="https://t.me/dream_sense_chat")],
+        [InlineKeyboardButton("💬 Подписаться на канал автора", url="https://t.me/N_W_passage")],
         [InlineKeyboardButton("💎 Донат на развитие", callback_data="donate")],
         [InlineKeyboardButton("🌙 Разобрать мой сон", callback_data="start_first_dream")]
     ]
@@ -210,8 +214,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 caption=(
                     "💫 Сны – это язык бессознательного. "
                     "Иногда оно шепчет, иногда показывает важное через образы, которые сложно понять с первого взгляда. "
-                    "Но за каждым сном – что-то очень личное, что-то только про тебя.\n\n"
-                    "Нажми кнопку ниже или просто начни писать свой сон."
+                    "Но за каждым сном – что-то очень личное, что-то только про тебя."
                 ),
                 reply_markup=reply_markup,
                 parse_mode='Markdown'
@@ -221,23 +224,31 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "💫 Сны – это язык бессознательного. "
             "Иногда оно шепчет, иногда показывает важное через образы, которые сложно понять с первого взгляда. "
-            "Но за каждым сном – что-то очень личное, что-то только про тебя.\n\n"
-            "Нажми кнопку ниже или просто начни писать свой сон.",
+            "Но за каждым сном – что-то очень личное, что-то только про тебя.",
+            
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
         
     await update.message.reply_text(
-        text="‎\u2060",  # специальный невидимый символ (юникодное пробелоподобное)
+        text="Нажми кнопку ниже или просто начни писать свой сон.",
         reply_markup=MAIN_MENU
     )
-
 
 async def start_first_dream_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "✨ Расскажи мне свой сон, даже если он странный, запутанный или пугающий – так подробно, как можешь. "
         "Опиши атмосферу, эмоции, персонажей и, если хочешь, укажи дату и место сна (можно просто город).",
-        reply_markup=MAIN_MENU  # чтобы кнопка осталась
+        reply_markup=MAIN_MENU 
+    )
+
+async def channel_view_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Лучшая поддержка сейчас — подписаться на канал автора.\n\nСпасибо! ❤️",
+        
+        reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("✅ Подписаться на канал", url="https://t.me/N_W_passage")]
+                ])
     )
 
 
@@ -353,7 +364,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.commit()
 
         await query.message.reply_text(
-            "✅ Спасибо!\nТеперь я смогу учитывать ваши ответы в интерпретации снов.",
+            "✅ Спасибо!\nТеперь я смогу учитывать твои ответы в интерпретации снов.",
             reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("🌙 Рассказать свой сон", callback_data="start_first_dream")]
         ])
@@ -363,6 +374,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text(
         "✨ Расскажи мне свой сон, даже если он странный, запутанный или пугающий – так подробно, как можешь. Опиши, по возможности, атмосферу и эмоции, которые его сопровождали. Если хочешь, чтобы я учёл положение планет в толковании – укажи дату и примерное место сна (можно по ближайшему крупному городу)"
     )
+
 
 
 # --- Инициализация приложения ---
