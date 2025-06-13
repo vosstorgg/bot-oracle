@@ -241,7 +241,7 @@ async def start_first_dream_command(update: Update, context: ContextTypes.DEFAUL
         reply_markup=MAIN_MENU 
     )
 
-async def channel_view_command_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def channel_view_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Лучшая поддержка сейчас — подписаться на канал автора. Спасибо!",
         
