@@ -938,8 +938,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
             await processing_msg.edit_text(
                 f"🎤 ➜ 📝 *Расшифровка:* {transcribed_text[:100]}{'...' if len(transcribed_text) > 100 else ''}\n\n"
                 f"〰️ Размышляю над твоим сном...",
-                parse_mode='Markdown',
-                reply_markup=MAIN_MENU
+                parse_mode='Markdown'
             )
             
             # Обрабатываем расшифрованный текст как обычное сообщение со сном
@@ -1033,6 +1032,6 @@ async def process_dream_text(update: Update, context: ContextTypes.DEFAULT_TYPE,
     
     # Отправляем или редактируем сообщение с результатом
     if message_to_edit:
-        await message_to_edit.edit_text(reply, parse_mode='Markdown', reply_markup=MAIN_MENU)
+        await message_to_edit.edit_text(reply, parse_mode='Markdown')
     else:
         await update.message.reply_text(reply, parse_mode='Markdown', reply_markup=MAIN_MENU)
