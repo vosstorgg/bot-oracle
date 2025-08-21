@@ -1144,10 +1144,20 @@ async def show_dream_diary_callback(update: Update, context: ContextTypes.DEFAUL
     total_dreams = count_user_dreams(chat_id)
     
     if not dreams:
-        await query.edit_message_text(
-            "📖 *Дневник снов пуст*\n\n"
-            "Расскажи мне свой первый сон, и я помогу его понять! "
-            "Все проанализированные сны будут автоматически сохраняться здесь.",
+        # Для пустого дневника - удаляем старое сообщение и отправляем новое
+        try:
+            await query.delete_message()
+        except Exception:
+            pass
+        
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="📖 *Дневник снов пуст*\n\n"
+                 "Расскажи мне свой первый сон, и я помогу его понять! "
+                 "Все проанализированные сны будут автоматически сохраняться здесь.",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")
+            ]]),
             parse_mode='Markdown'
         )
         return
@@ -1187,11 +1197,26 @@ async def show_dream_diary_callback(update: Update, context: ContextTypes.DEFAUL
     
     keyboard.append([InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")])
     
-    await query.edit_message_text(
-        message_text,
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode='Markdown'
-    )
+    # Пытаемся отредактировать, если не получается - удаляем и отправляем новое
+    try:
+        await query.edit_message_text(
+            message_text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+    except BadRequest:
+        # Если сообщение содержит фото и не может быть отредактировано как текст
+        try:
+            await query.delete_message()
+        except Exception:
+            pass
+        
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=message_text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
 
 async def show_dream_detail(update: Update, context: ContextTypes.DEFAULT_TYPE, dream_id: int):
     """Показывает полный сон с толкованием"""
