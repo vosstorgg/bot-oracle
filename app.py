@@ -23,7 +23,7 @@ if not TELEGRAM_TOKEN:
     raise ValueError("TELEGRAM_TOKEN environment variable is required")
 
 # Создаем FastAPI приложение
-app = FastAPI(title="Dream Analysis Bot", version="2.0")
+app = FastAPI(title="Dream Analysis Bot", version="2.0", lifespan=lifespan)
 
 # Создаем Telegram Application
 telegram_app = Application.builder().token(TELEGRAM_TOKEN).build()
@@ -33,9 +33,12 @@ telegram_app.add_handler(CommandHandler("start", start_command))
 telegram_app.add_handler(CallbackQueryHandler(button_handler))
 telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-@app.on_event("startup")
-async def startup_event():
-    """Инициализация при запуске сервера"""
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Управление жизненным циклом приложения"""
+    # Startup
     logger.info("🚀 Starting webhook server...")
     
     # Инициализируем Telegram Application
@@ -56,10 +59,10 @@ async def startup_event():
             logger.error(f"❌ Ошибка установки webhook: {e}")
     else:
         logger.warning("⚠️ WEBHOOK_URL не установлен - webhook не настроен")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Очистка при остановке сервера"""
+    
+    yield
+    
+    # Shutdown
     logger.info("🛑 Shutting down webhook server...")
     await telegram_app.stop()
     await telegram_app.shutdown()
