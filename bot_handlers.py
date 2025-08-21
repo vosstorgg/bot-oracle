@@ -940,10 +940,10 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
                     )
                 return
             
-            # Показываем расшифровку
+            # Показываем полную расшифровку
             try:
                 await processing_msg.edit_text(
-                    f"🎤 ➜ 📝 *Расшифровка:* {transcribed_text[:100]}{'...' if len(transcribed_text) > 100 else ''}\n\n"
+                    f"🎤 ➜ 📝 *Расшифровка:* {transcribed_text}\n\n"
                     f"〰️ Размышляю над твоим сном...",
                     parse_mode='Markdown'
                 )
@@ -952,7 +952,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
             except BadRequest:
                 # Если не удается редактировать, отправляем новое сообщение и обрабатываем без редактирования
                 await update.message.reply_text(
-                    f"🎤 ➜ 📝 *Расшифровка:* {transcribed_text[:100]}{'...' if len(transcribed_text) > 100 else ''}",
+                    f"🎤 ➜ 📝 *Расшифровка:* {transcribed_text}",
                     parse_mode='Markdown'
                 )
                 # Отправляем новое сообщение для анализа
