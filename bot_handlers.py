@@ -940,23 +940,24 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
                     )
                 return
             
-            # Обновляем сообщение с результатом расшифровки
+            # Показываем расшифровку
             try:
                 await processing_msg.edit_text(
                     f"🎤 ➜ 📝 *Расшифровка:* {transcribed_text[:100]}{'...' if len(transcribed_text) > 100 else ''}\n\n"
                     f"〰️ Размышляю над твоим сном...",
                     parse_mode='Markdown'
                 )
+                # Обрабатываем расшифрованный текст как обычное сообщение со сном
+                await process_dream_text(update, context, transcribed_text, processing_msg)
             except BadRequest:
-                # Если не удается редактировать, отправляем новое сообщение
-                processing_msg = await update.message.reply_text(
-                    f"🎤 ➜ 📝 *Расшифровка:* {transcribed_text[:100]}{'...' if len(transcribed_text) > 100 else ''}\n\n"
-                    f"〰️ Размышляю над твоим сном...",
+                # Если не удается редактировать, отправляем новое сообщение и обрабатываем без редактирования
+                await update.message.reply_text(
+                    f"🎤 ➜ 📝 *Расшифровка:* {transcribed_text[:100]}{'...' if len(transcribed_text) > 100 else ''}",
                     parse_mode='Markdown'
                 )
-            
-            # Обрабатываем расшифрованный текст как обычное сообщение со сном
-            await process_dream_text(update, context, transcribed_text, processing_msg)
+                # Отправляем новое сообщение для анализа
+                thinking_msg = await update.message.reply_text("〰️ Размышляю над твоим сном...")
+                await process_dream_text(update, context, transcribed_text, thinking_msg)
             
         finally:
             # Удаляем временный файл
