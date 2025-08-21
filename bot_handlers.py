@@ -434,10 +434,11 @@ def get_all_users():
     """Получить список всех пользователей из базы данных"""
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT DISTINCT chat_id 
+            SELECT chat_id 
             FROM user_stats 
             WHERE chat_id IS NOT NULL 
-            ORDER BY updated_at DESC
+            GROUP BY chat_id
+            ORDER BY MAX(updated_at) DESC
         """)
         users = cur.fetchall()
         return [str(user[0]) for user in users]
