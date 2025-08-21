@@ -85,8 +85,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         
         if not transcribed_text:
             await processing_msg.edit_text(
-                "❌ Не удалось распознать речь. Попробуйте записать сообщение заново или написать текстом.",
-                reply_markup=MAIN_MENU
+                "❌ Не удалось распознать речь. Попробуйте записать сообщение заново или написать текстом."
             )
             return
         
@@ -96,8 +95,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         if should_reject:
             db.log_activity(user, chat_id, "voice_rejected", f"reason: {rejection_reason}, text: {transcribed_text}")
             await processing_msg.edit_text(
-                "🤔 Не удалось распознать речь. Попробуйте записать сообщение четче или написать текстом.",
-                reply_markup=MAIN_MENU
+                "🤔 Не удалось распознать речь. Попробуйте записать сообщение четче или написать текстом."
             )
             return
         
@@ -125,8 +123,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
     except Exception as e:
         db.log_activity(user, chat_id, "voice_error", str(e))
         await processing_msg.edit_text(
-            f"❌ Ошибка при обработке голосового сообщения: {e}\n\nПопробуйте отправить текстом.",
-            reply_markup=MAIN_MENU
+            f"❌ Ошибка при обработке голосового сообщения: {e}\n\nПопробуйте отправить текстом."
         )
 
 
