@@ -1,6 +1,8 @@
 import os
 import asyncio
 import psycopg2
+import io
+import tempfile
 from datetime import datetime, timezone
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -118,6 +120,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_admin_broadcast_confirmation(update, context)
         return
     
+    # Обработка голосовых сообщений для обычных пользователей
+    if update.message.voice:
+        await handle_voice_message(update, context)
+        return
+    
     # Получаем текст сообщения (может быть из text или caption для медиа)
     user_message = ""
     if update.message.text:
@@ -136,7 +143,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Для обычных пользователей - обрабатываем только текстовые описания снов
     if not user_message:
         await update.message.reply_text(
-            "🤔 Я анализирую только текстовые описания снов. Расскажи мне свой сон словами, и я помогу его понять.",
+            "🤔 Я анализирую только текстовые описания снов. Расскажи мне свой сон словами или запиши голосовое сообщение, и я помогу его понять.",
             reply_markup=MAIN_MENU
         )
         return
@@ -144,75 +151,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     log_activity(user, chat_id, "message", user_message)
     log_activity(user, chat_id, "gpt_request", f"model=gpt-4o, temp=0.4, max_tokens={MAX_TOKENS}")
 
-    update_user_stats(user, chat_id, user_message)
-
-    # Сохраняем сообщение пользователя
-    with conn.cursor() as cur:
-        cur.execute("""
-            INSERT INTO messages (chat_id, role, content, timestamp)
-            VALUES (%s, %s, %s, %s)
-        """, (chat_id, "user", user_message, datetime.now(timezone.utc)))
-
-    # Загружаем историю
-    with conn.cursor() as cur:
-        cur.execute("""
-            SELECT role, content FROM messages
-            WHERE chat_id = %s ORDER BY timestamp DESC LIMIT %s
-        """, (chat_id, MAX_HISTORY * 2))
-        rows = cur.fetchall()
-        history = [{"role": r, "content": c} for r, c in reversed(rows)]
-
-    # Получаем анкету пользователя
-    with conn.cursor() as cur:
-        cur.execute("""
-            SELECT gender, age_group, lucid_dreaming FROM user_profile
-            WHERE chat_id = %s
-        """, (chat_id,))
-        profile = cur.fetchone()
-
-    profile_info = ""
-    if profile:
-        gender, age_group, lucid = profile
-        if gender:
-            profile_info += f"User gender: {gender}. "
-        if age_group:
-            profile_info += f"User age group: {age_group}. "
-        if lucid:
-            profile_info += f"Lucid dream experience: {lucid}. "
-
-    # Собираем персонализированный prompt
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    personalized_prompt = DEFAULT_SYSTEM_PROMPT
-    personalized_prompt += f"\n\n# Current date\nToday is {today_str}."
-    if profile_info:
-        personalized_prompt += f"\n\n# User context\n{profile_info.strip()}"
-
-
     # Отправка "размышляет"
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
     thinking_msg = await update.message.reply_text("〰️ Размышляю...")
 
-    try:
-        response = await openai_client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "system", "content": personalized_prompt}] + history,
-            temperature=0.45,
-            max_tokens=MAX_TOKENS
-        )
-        reply = response.choices[0].message.content
-        
-        log_activity(user, chat_id, "dream_interpreted", reply[:300])
-    except Exception as e:
-        reply = f"❌ Ошибка, повторите ещё раз: {e}"
-
-    # Сохраняем ответ
-    with conn.cursor() as cur:
-        cur.execute("""
-            INSERT INTO messages (chat_id, role, content, timestamp)
-            VALUES (%s, %s, %s, %s)
-        """, (chat_id, "assistant", reply, datetime.now(timezone.utc)))
-
-    await thinking_msg.edit_text(reply, parse_mode='Markdown')
+    # Используем общую функцию для обработки текста сна
+    await process_dream_text(update, context, user_message, thinking_msg)
 
 
 # --- Обработчик команды /start ---
@@ -943,3 +887,152 @@ async def handle_broadcast_confirm_no(update: Update, context: ContextTypes.DEFA
         "❌ *Рассылка отменена*\n\nСообщение не было отправлено пользователям.",
         parse_mode='Markdown'
     )
+
+async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик голосовых сообщений с расшифровкой через Whisper API"""
+    chat_id = str(update.effective_chat.id)
+    user = update.effective_user
+    voice = update.message.voice
+    
+    # Отправляем уведомление о начале обработки
+    processing_msg = await update.message.reply_text(
+        "🎤 Расшифровываю голосовое сообщение...",
+        reply_markup=MAIN_MENU
+    )
+    
+    try:
+        # Скачиваем голосовой файл
+        voice_file = await context.bot.get_file(voice.file_id)
+        voice_data = await voice_file.download_as_bytearray()
+        
+        # Логируем использование голосовых сообщений
+        log_activity(user, chat_id, "voice_message", f"duration: {voice.duration}s")
+        
+        # Создаем временный файл для Whisper API
+        with tempfile.NamedTemporaryFile(suffix=".oga", delete=False) as temp_file:
+            temp_file.write(voice_data)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Отправляем в Whisper API для расшифровки
+            with open(temp_file_path, "rb") as audio_file:
+                transcription = await openai_client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio_file,
+                    language="ru"  # Указываем русский язык для лучшего качества
+                )
+            
+            transcribed_text = transcription.text.strip()
+            
+            # Логируем расшифровку
+            log_activity(user, chat_id, "voice_transcribed", transcribed_text[:100])
+            
+            if not transcribed_text:
+                await processing_msg.edit_text(
+                    "😔 Не удалось распознать речь в голосовом сообщении. Попробуйте записать заново или отправить текстом.",
+                    reply_markup=MAIN_MENU
+                )
+                return
+            
+            # Обновляем сообщение с результатом расшифровки
+            await processing_msg.edit_text(
+                f"🎤 ➜ 📝 *Расшифровка:* {transcribed_text[:100]}{'...' if len(transcribed_text) > 100 else ''}\n\n"
+                f"〰️ Размышляю над твоим сном...",
+                parse_mode='Markdown',
+                reply_markup=MAIN_MENU
+            )
+            
+            # Обрабатываем расшифрованный текст как обычное сообщение со сном
+            await process_dream_text(update, context, transcribed_text, processing_msg)
+            
+        finally:
+            # Удаляем временный файл
+            try:
+                os.unlink(temp_file_path)
+            except:
+                pass
+                
+    except Exception as e:
+        log_activity(user, chat_id, "voice_error", str(e))
+        await processing_msg.edit_text(
+            f"❌ Ошибка при обработке голосового сообщения: {e}\n\nПопробуйте отправить текстом.",
+            reply_markup=MAIN_MENU
+        )
+
+async def process_dream_text(update: Update, context: ContextTypes.DEFAULT_TYPE, dream_text: str, message_to_edit=None):
+    """Обработка текста сна через OpenAI (используется для текста и голосовых)"""
+    chat_id = str(update.effective_chat.id)
+    user = update.effective_user
+    
+    # Обновляем статистику пользователя
+    update_user_stats(user, chat_id, dream_text)
+    
+    # Сохраняем сообщение пользователя
+    with conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO messages (chat_id, role, content, timestamp)
+            VALUES (%s, %s, %s, %s)
+        """, (chat_id, "user", dream_text, datetime.now(timezone.utc)))
+    
+    # Загружаем историю
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT role, content FROM messages
+            WHERE chat_id = %s ORDER BY timestamp DESC LIMIT %s
+        """, (chat_id, MAX_HISTORY * 2))
+        rows = cur.fetchall()
+        history = [{"role": r, "content": c} for r, c in reversed(rows)]
+    
+    # Получаем анкету пользователя
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT gender, age_group, lucid_dreaming FROM user_profile
+            WHERE chat_id = %s
+        """, (chat_id,))
+        profile = cur.fetchone()
+    
+    profile_info = ""
+    if profile:
+        gender, age_group, lucid = profile
+        if gender:
+            profile_info += f"User gender: {gender}. "
+        if age_group:
+            profile_info += f"User age group: {age_group}. "
+        if lucid:
+            profile_info += f"Lucid dream experience: {lucid}. "
+    
+    # Собираем персонализированный prompt
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    personalized_prompt = DEFAULT_SYSTEM_PROMPT
+    personalized_prompt += f"\n\n# Current date\nToday is {today_str}."
+    if profile_info:
+        personalized_prompt += f"\n\n# User context\n{profile_info.strip()}"
+    
+    try:
+        # Отправка в OpenAI для анализа сна
+        response = await openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "system", "content": personalized_prompt}] + history,
+            temperature=0.45,
+            max_tokens=MAX_TOKENS
+        )
+        reply = response.choices[0].message.content
+        
+        log_activity(user, chat_id, "dream_interpreted", reply[:300])
+        
+    except Exception as e:
+        reply = f"❌ Ошибка при анализе сна: {e}"
+        log_activity(user, chat_id, "openai_error", str(e))
+    
+    # Сохраняем ответ
+    with conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO messages (chat_id, role, content, timestamp)
+            VALUES (%s, %s, %s, %s)
+        """, (chat_id, "assistant", reply, datetime.now(timezone.utc)))
+    
+    # Отправляем или редактируем сообщение с результатом
+    if message_to_edit:
+        await message_to_edit.edit_text(reply, parse_mode='Markdown', reply_markup=MAIN_MENU)
+    else:
+        await update.message.reply_text(reply, parse_mode='Markdown', reply_markup=MAIN_MENU)
