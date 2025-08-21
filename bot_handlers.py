@@ -894,6 +894,15 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
     user = update.effective_user
     voice = update.message.voice
     
+    # Проверяем минимальную длительность голосового сообщения
+    if voice.duration < 2:  # Меньше 2 секунд - вероятно случайное
+        await update.message.reply_text(
+            "🤔 Голосовое сообщение слишком короткое. Попробуйте записать сон подробнее или отправьте текстом.",
+            reply_markup=MAIN_MENU
+        )
+        log_activity(user, chat_id, "voice_too_short", f"duration: {voice.duration}s")
+        return
+    
     # Отправляем уведомление о начале обработки
     processing_msg = await update.message.reply_text(
         "🎤 Расшифровываю голосовое сообщение...",
@@ -927,7 +936,16 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
             # Логируем расшифровку
             log_activity(user, chat_id, "voice_transcribed", transcribed_text[:100])
             
-            if not transcribed_text:
+            # Проверяем на подозрительные галлюцинации Whisper
+            suspicious_phrases = [
+                "редактор субтитров", "корректор", "субтитры", "титры",
+                "всем пока", "до свидания", "спасибо за внимание",
+                "подписывайтесь", "ставьте лайк", "комментарии"
+            ]
+            
+            is_suspicious = any(phrase.lower() in transcribed_text.lower() for phrase in suspicious_phrases)
+            
+            if not transcribed_text or (is_suspicious and voice.duration < 5):
                 try:
                     await processing_msg.edit_text(
                         "😔 Не удалось распознать речь в голосовом сообщении. Попробуйте записать заново или отправить текстом.",
