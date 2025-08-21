@@ -278,41 +278,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     log_activity(user, str(chat_id), "start")
     increment_start_count(user, str(chat_id))
 
-    # Inline-кнопки под приветствием
-    keyboard = [
-        [InlineKeyboardButton("🧾 Познакомимся?", callback_data="start_profile")],
-        [InlineKeyboardButton("🔮 Что я умею", callback_data="about")],
-        [InlineKeyboardButton("💬 Подписаться на канал автора", url="https://t.me/N_W_passage")],
-        [InlineKeyboardButton("💎 Донат на развитие", callback_data="donate")],
-        [InlineKeyboardButton("🌙 Разобрать мой сон", callback_data="start_first_dream")],
-        [InlineKeyboardButton("📖 Дневник снов", callback_data="diary_page:0")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    # Отправляем приветствие с фото и кнопками
-    try:
-        with open("intro.png", "rb") as photo:
-            await context.bot.send_photo(
-                chat_id=chat_id,
-                photo=photo,
-                caption=(
-                    "💫 Сны – это язык бессознательного. "
-                    "Иногда оно шепчет, иногда показывает важное через образы, которые сложно понять с первого взгляда. "
-                    "Но за каждым сном – что-то очень личное, что-то только про тебя."
-                ),
-                reply_markup=reply_markup,
-                parse_mode='Markdown'
-            )
-    
-    except FileNotFoundError:
-        await update.message.reply_text(
-            "💫 Сны – это язык бессознательного. "
-            "Иногда оно шепчет, иногда показывает важное через образы, которые сложно понять с первого взгляда. "
-            "Но за каждым сном – что-то очень личное, что-то только про тебя.",
-            
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
-        )
+    # Отправляем стартовое меню
+    await send_start_menu(chat_id, context, user)
         
     await update.message.reply_text(
         text="Просто опиши свой сон и я начну трактование",
@@ -497,14 +464,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
     
     elif query.data == "main_menu":
-        await query.edit_message_text(
-            "🏠 *Главное меню*\n\nВыберите действие:",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🌙 Рассказать сон", callback_data="start_first_dream")],
-                [InlineKeyboardButton("📖 Дневник снов", callback_data="diary_page:0")]
-            ]),
-            parse_mode='Markdown'
-        )
+        chat_id = query.message.chat_id
+        user = query.from_user
+        
+        # Удаляем текущее сообщение
+        await query.delete_message()
+        
+        # Отправляем полное стартовое меню с фотографией
+        await send_start_menu(chat_id, context, user)
     
     # Админские callback'и
     elif query.data == "admin_broadcast":
@@ -1045,6 +1012,51 @@ async def handle_broadcast_confirm_no(update: Update, context: ContextTypes.DEFA
         "❌ *Рассылка отменена*\n\nСообщение не было отправлено пользователям.",
         parse_mode='Markdown'
     )
+
+# --- Функция отправки стартового меню ---
+async def send_start_menu(chat_id, context, user):
+    """Отправляет стартовое меню с фотографией и inline-кнопками"""
+    
+    # Логируем событие
+    log_activity(user, str(chat_id), "start_menu_shown")
+    
+    # Inline-кнопки под приветствием
+    keyboard = [
+        [InlineKeyboardButton("🧾 Познакомимся?", callback_data="start_profile")],
+        [InlineKeyboardButton("🔮 Что я умею", callback_data="about")],
+        [InlineKeyboardButton("💬 Подписаться на канал автора", url="https://t.me/N_W_passage")],
+        [InlineKeyboardButton("💎 Донат на развитие", callback_data="donate")],
+        [InlineKeyboardButton("🌙 Разобрать мой сон", callback_data="start_first_dream")],
+        [InlineKeyboardButton("📖 Дневник снов", callback_data="diary_page:0")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Отправляем приветствие с фото и кнопками
+    try:
+        with open("intro.png", "rb") as photo:
+            await context.bot.send_photo(
+                chat_id=chat_id,
+                photo=photo,
+                caption=(
+                    "💫 Сны – это язык бессознательного. "
+                    "Иногда оно шепчет, иногда показывает важное через образы, которые сложно понять с первого взгляда. "
+                    "Но за каждым сном – что-то очень личное, что-то только про тебя."
+                ),
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
+    except FileNotFoundError:
+        # Если фото не найдено, отправляем текстовое сообщение
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=(
+                "💫 Сны – это язык бессознательного. "
+                "Иногда оно шепчет, иногда показывает важное через образы, которые сложно понять с первого взгляда. "
+                "Но за каждым сном – что-то очень личное, что-то только про тебя."
+            ),
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
 
 # --- UI Дневника снов ---
 async def show_dream_diary(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0):
