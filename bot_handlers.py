@@ -1,8 +1,10 @@
 import os
+import asyncio
 import psycopg2
 from datetime import datetime, timezone
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import ContextTypes
+from telegram.error import Forbidden, BadRequest, NetworkError
 from openai import AsyncOpenAI
 
 today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -21,6 +23,10 @@ conn = psycopg2.connect(
 
 MAX_TOKENS = 1400
 MAX_HISTORY = 10
+
+# --- Настройки админов ---
+ADMIN_CHAT_IDS = os.getenv("ADMIN_CHAT_IDS", "234526032").split(",")
+ADMIN_CHAT_IDS = [chat_id.strip() for chat_id in ADMIN_CHAT_IDS if chat_id.strip()]
 
 # --- Default system prompt ---
 DEFAULT_SYSTEM_PROMPT = (
@@ -370,3 +376,128 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text(
         "✨ Расскажи мне свой сон, даже если он странный, запутанный или пугающий – так подробно, как можешь. Опиши, по возможности, атмосферу и эмоции, которые его сопровождали. Если хочешь, чтобы я учёл положение планет в толковании – укажи дату и примерное место сна (можно по ближайшему крупному городу)"
     )
+
+
+# --- Функции для broadcast ---
+
+def get_all_users():
+    """Получить список всех пользователей из базы данных"""
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT DISTINCT chat_id 
+            FROM user_stats 
+            WHERE chat_id IS NOT NULL 
+            ORDER BY updated_at DESC
+        """)
+        users = cur.fetchall()
+        return [str(user[0]) for user in users]
+
+async def send_broadcast_message(context, chat_id: str, message: str):
+    """Отправить сообщение одному пользователю с обработкой ошибок"""
+    try:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=message,
+            parse_mode='Markdown'
+        )
+        return {"status": "success", "chat_id": chat_id}
+    except Forbidden:
+        # Пользователь заблокировал бота
+        return {"status": "blocked", "chat_id": chat_id}
+    except BadRequest:
+        # Неверный chat_id или другая ошибка
+        return {"status": "error", "chat_id": chat_id}
+    except NetworkError:
+        # Проблемы с сетью - повторим позже
+        return {"status": "network_error", "chat_id": chat_id}
+    except Exception as e:
+        # Неизвестная ошибка
+        return {"status": "unknown_error", "chat_id": chat_id, "error": str(e)}
+
+async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда массовой рассылки для админов"""
+    chat_id = str(update.effective_chat.id)
+    user = update.effective_user
+    
+    # Проверка прав админа
+    if chat_id not in ADMIN_CHAT_IDS:
+        await update.message.reply_text("❌ У вас нет прав для выполнения этой команды.")
+        return
+    
+    # Логируем использование команды
+    log_activity(user, chat_id, "broadcast_command", "admin used broadcast")
+    
+    # Проверяем, что есть текст для рассылки
+    if not context.args:
+        await update.message.reply_text(
+            "📢 *Команда массовой рассылки*\n\n"
+            "Использование: `/broadcast <сообщение>`\n\n"
+            "Пример: `/broadcast Привет! У нас новые функции в боте!`",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Собираем текст сообщения
+    broadcast_text = " ".join(context.args)
+    
+    # Получаем список пользователей
+    users = get_all_users()
+    total_users = len(users)
+    
+    if total_users == 0:
+        await update.message.reply_text("📭 Нет пользователей для рассылки.")
+        return
+    
+    # Отправляем уведомление о начале рассылки
+    progress_msg = await update.message.reply_text(
+        f"📡 *Начинаю рассылку...*\n\n"
+        f"👥 Всего пользователей: {total_users}\n"
+        f"📝 Сообщение: `{broadcast_text[:100]}{'...' if len(broadcast_text) > 100 else ''}`",
+        parse_mode='Markdown'
+    )
+    
+    # Счетчики результатов
+    results = {
+        "success": 0,
+        "blocked": 0, 
+        "error": 0,
+        "network_error": 0,
+        "unknown_error": 0
+    }
+    
+    # Отправляем сообщения с rate limiting
+    for i, user_chat_id in enumerate(users, 1):
+        result = await send_broadcast_message(context, user_chat_id, broadcast_text)
+        results[result["status"]] += 1
+        
+        # Обновляем прогресс каждые 50 сообщений
+        if i % 50 == 0 or i == total_users:
+            await progress_msg.edit_text(
+                f"📡 *Рассылка в процессе...*\n\n"
+                f"📊 Прогресс: {i}/{total_users}\n"
+                f"✅ Успешно: {results['success']}\n"
+                f"🚫 Заблокировали: {results['blocked']}\n"
+                f"❌ Ошибки: {results['error'] + results['network_error'] + results['unknown_error']}",
+                parse_mode='Markdown'
+            )
+        
+        # Rate limiting - 30 сообщений в секунду максимум для Telegram
+        await asyncio.sleep(0.05)
+    
+    # Итоговый отчет
+    await progress_msg.edit_text(
+        f"✅ *Рассылка завершена!*\n\n"
+        f"📊 **Статистика:**\n"
+        f"👥 Всего пользователей: {total_users}\n"
+        f"✅ Доставлено: {results['success']}\n"
+        f"🚫 Заблокировали бота: {results['blocked']}\n"
+        f"❌ Ошибки отправки: {results['error']}\n"
+        f"🌐 Сетевые ошибки: {results['network_error']}\n"
+        f"❓ Неизвестные ошибки: {results['unknown_error']}\n\n"
+        f"📈 Успешность: {(results['success']/total_users*100):.1f}%",
+        parse_mode='Markdown'
+    )
+    
+    # Логируем результаты
+    log_activity(user, chat_id, "broadcast_completed", 
+                f"sent to {results['success']}/{total_users} users")

@@ -4,7 +4,7 @@ import logging
 from fastapi import FastAPI, Request, HTTPException
 from telegram import Update, Bot
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
-from bot_handlers import start_command, button_handler, handle_message
+from bot_handlers import start_command, button_handler, handle_message, broadcast_command
 
 # Настройка логирования
 logging.basicConfig(
@@ -30,6 +30,7 @@ telegram_app = Application.builder().token(TELEGRAM_TOKEN).build()
 
 # Добавляем обработчики
 telegram_app.add_handler(CommandHandler("start", start_command))
+telegram_app.add_handler(CommandHandler("broadcast", broadcast_command))
 telegram_app.add_handler(CallbackQueryHandler(button_handler))
 telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
