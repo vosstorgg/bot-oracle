@@ -11,6 +11,8 @@ from core.config import PAGINATION
 
 async def show_dream_diary(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0):
     """Показать дневник снов пользователя"""
+    from core.config import IMAGE_PATHS
+    
     chat_id = str(update.effective_chat.id)
     user = update.effective_user
     
@@ -19,12 +21,28 @@ async def show_dream_diary(update: Update, context: ContextTypes.DEFAULT_TYPE, p
     
     if total_dreams == 0:
         keyboard = [[InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")]]
-        await update.message.reply_text(
+        
+        caption = (
             "📖 *Дневник снов*\n\n"
-            "У тебя пока нет записанных снов. Расскажи мне свой сон, и он автоматически сохранится в дневнике!",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
+            "Здесь хранятся все твои сны и их толкования. Каждый сон, который ты мне рассказываешь (текстом или голосом), "
+            "автоматически сохраняется в дневник вместе с моей интерпретацией.\n\n"
+            "У тебя пока нет записанных снов. Расскажи мне свой сон, и он появится здесь!"
         )
+        
+        try:
+            with open(IMAGE_PATHS["diary"], "rb") as photo:
+                await update.message.reply_photo(
+                    photo=photo,
+                    caption=caption,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode='Markdown'
+                )
+        except FileNotFoundError:
+            await update.message.reply_text(
+                caption,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
         return
     
     # Вычисляем пагинацию
@@ -35,23 +53,30 @@ async def show_dream_diary(update: Update, context: ContextTypes.DEFAULT_TYPE, p
     # Получаем сны для текущей страницы
     dreams = db.get_user_dreams(chat_id, pagination["items_per_page"], pagination["offset"])
     
-    # Формируем сообщение
-    message_text = f"📖 *Дневник снов* (стр. {pagination['current_page'] + 1} из {pagination['total_pages']})\n\n"
+    # Формируем caption с описанием
+    caption = (
+        "📖 *Дневник снов*\n\n"
+        "Здесь хранятся все твои сны и их толкования. Нажми на любой сон, чтобы прочитать его полностью.\n\n"
+        f"📊 У тебя {total_dreams} {'сон' if total_dreams == 1 else 'снов' if total_dreams < 5 else 'снов'} в дневнике"
+    )
+    
+    if pagination["total_pages"] > 1:
+        caption += f" (стр. {pagination['current_page'] + 1} из {pagination['total_pages']})"
     
     keyboard = []
     
     for i, dream in enumerate(dreams):
         dream_id, dream_text, interpretation, source_type, created_at, dream_date = dream
         
-        # Краткое описание сна
-        dream_preview = MessageFormatter.format_dream_preview(dream_text, 60)
+        # Краткое описание для кнопки
+        dream_preview = MessageFormatter.format_dream_preview(dream_text, 35)
         source_icon = MessageFormatter.get_source_icon(source_type)
         date_str = MessageFormatter.format_date(created_at)
         
-        message_text += f"{source_icon} *{date_str}*\n{dream_preview}\n\n"
+        button_text = f"{source_icon} {date_str} • {dream_preview}"
         
         keyboard.append([InlineKeyboardButton(
-            f"📖 Сон {i+1 + pagination['offset']}", 
+            button_text, 
             callback_data=f"dream_view:{dream_id}"
         )])
     
@@ -67,15 +92,26 @@ async def show_dream_diary(update: Update, context: ContextTypes.DEFAULT_TYPE, p
     
     keyboard.append([InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")])
     
-    await update.message.reply_text(
-        message_text,
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode='Markdown'
-    )
+    try:
+        with open(IMAGE_PATHS["diary"], "rb") as photo:
+            await update.message.reply_photo(
+                photo=photo,
+                caption=caption,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+    except FileNotFoundError:
+        await update.message.reply_text(
+            caption,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
 
 
 async def show_dream_diary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0):
     """Показать дневник снов через callback (с редактированием)"""
+    from core.config import IMAGE_PATHS
+    
     query = update.callback_query
     chat_id = str(update.effective_chat.id)
     
@@ -84,28 +120,33 @@ async def show_dream_diary_callback(update: Update, context: ContextTypes.DEFAUL
     
     if total_dreams == 0:
         keyboard = [[InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")]]
-        message_text = (
+        
+        caption = (
             "📖 *Дневник снов*\n\n"
-            "У тебя пока нет записанных снов. Расскажи мне свой сон, и он автоматически сохранится в дневнике!"
+            "Здесь хранятся все твои сны и их толкования. Каждый сон, который ты мне рассказываешь (текстом или голосом), "
+            "автоматически сохраняется в дневник вместе с моей интерпретацией.\n\n"
+            "У тебя пока нет записанных снов. Расскажи мне свой сон, и он появится здесь!"
         )
         
-        # Пытаемся отредактировать, если не получается - удаляем и отправляем новое
+        # Удаляем старое сообщение и отправляем новое с фото
         try:
-            await query.edit_message_text(
-                message_text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
-            )
-        except BadRequest:
-            # Если сообщение содержит фото и не может быть отредактировано как текст
-            try:
-                await query.delete_message()
-            except Exception:
-                pass
-            
+            await query.delete_message()
+        except Exception:
+            pass
+        
+        try:
+            with open(IMAGE_PATHS["diary"], "rb") as photo:
+                await context.bot.send_photo(
+                    chat_id=chat_id,
+                    photo=photo,
+                    caption=caption,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode='Markdown'
+                )
+        except FileNotFoundError:
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=message_text,
+                text=caption,
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode='Markdown'
             )
@@ -119,23 +160,30 @@ async def show_dream_diary_callback(update: Update, context: ContextTypes.DEFAUL
     # Получаем сны для текущей страницы
     dreams = db.get_user_dreams(chat_id, pagination["items_per_page"], pagination["offset"])
     
-    # Формируем сообщение
-    message_text = f"📖 *Дневник снов* (стр. {pagination['current_page'] + 1} из {pagination['total_pages']})\n\n"
+    # Формируем caption с описанием
+    caption = (
+        "📖 *Дневник снов*\n\n"
+        "Здесь хранятся все твои сны и их толкования. Нажми на любой сон, чтобы прочитать его полностью.\n\n"
+        f"📊 У тебя {total_dreams} {'сон' if total_dreams == 1 else 'снов' if total_dreams < 5 else 'снов'} в дневнике"
+    )
+    
+    if pagination["total_pages"] > 1:
+        caption += f" (стр. {pagination['current_page'] + 1} из {pagination['total_pages']})"
     
     keyboard = []
     
     for i, dream in enumerate(dreams):
         dream_id, dream_text, interpretation, source_type, created_at, dream_date = dream
         
-        # Краткое описание сна
-        dream_preview = MessageFormatter.format_dream_preview(dream_text, 60)
+        # Краткое описание для кнопки
+        dream_preview = MessageFormatter.format_dream_preview(dream_text, 35)
         source_icon = MessageFormatter.get_source_icon(source_type)
         date_str = MessageFormatter.format_date(created_at)
         
-        message_text += f"{source_icon} *{date_str}*\n{dream_preview}\n\n"
+        button_text = f"{source_icon} {date_str} • {dream_preview}"
         
         keyboard.append([InlineKeyboardButton(
-            f"📖 Сон {i+1 + pagination['offset']}", 
+            button_text, 
             callback_data=f"dream_view:{dream_id}"
         )])
     
@@ -151,23 +199,25 @@ async def show_dream_diary_callback(update: Update, context: ContextTypes.DEFAUL
     
     keyboard.append([InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")])
     
-    # Пытаемся отредактировать, если не получается - удаляем и отправляем новое
+    # Удаляем старое сообщение и отправляем новое с фото
     try:
-        await query.edit_message_text(
-            message_text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
-        )
-    except BadRequest:
-        # Если сообщение содержит фото и не может быть отредактировано как текст
-        try:
-            await query.delete_message()
-        except Exception:
-            pass
-        
+        await query.delete_message()
+    except Exception:
+        pass
+    
+    try:
+        with open(IMAGE_PATHS["diary"], "rb") as photo:
+            await context.bot.send_photo(
+                chat_id=chat_id,
+                photo=photo,
+                caption=caption,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+    except FileNotFoundError:
         await context.bot.send_message(
             chat_id=chat_id,
-            text=message_text,
+            text=caption,
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )

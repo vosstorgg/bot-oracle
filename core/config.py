@@ -32,7 +32,8 @@ IMAGE_PATHS = {
     "intro": f"{STATIC_DIR}/intro.png",
     "about": f"{STATIC_DIR}/about.png", 
     "donate": f"{STATIC_DIR}/donate.png",
-    "quiz": f"{STATIC_DIR}/quiz.png"
+    "quiz": f"{STATIC_DIR}/quiz.png",
+    "diary": f"{STATIC_DIR}/diary.png"
 }
 
 # === ПРОМПТ ДЛЯ AI ===
