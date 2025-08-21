@@ -22,9 +22,6 @@ PORT = int(os.getenv("PORT", 8000))
 if not TELEGRAM_TOKEN:
     raise ValueError("TELEGRAM_TOKEN environment variable is required")
 
-# Создаем FastAPI приложение
-app = FastAPI(title="Dream Analysis Bot", version="2.0", lifespan=lifespan)
-
 # Создаем Telegram Application
 telegram_app = Application.builder().token(TELEGRAM_TOKEN).build()
 
@@ -66,6 +63,9 @@ async def lifespan(app: FastAPI):
     logger.info("🛑 Shutting down webhook server...")
     await telegram_app.stop()
     await telegram_app.shutdown()
+
+# Создаем FastAPI приложение
+app = FastAPI(title="Dream Analysis Bot", version="2.0", lifespan=lifespan)
 
 @app.get("/")
 async def root():
