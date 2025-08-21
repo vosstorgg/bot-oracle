@@ -21,6 +21,70 @@ conn = psycopg2.connect(
     dbname=os.getenv("PGDATABASE")
 )
 
+# --- Инициализация таблиц ---
+def init_tables():
+    """Инициализация необходимых таблиц"""
+    with conn.cursor() as cur:
+        # Таблица статистики пользователей
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_stats (
+                chat_id VARCHAR(20) PRIMARY KEY,
+                username VARCHAR(100),
+                messages_sent INTEGER DEFAULT 0,
+                symbols_sent INTEGER DEFAULT 0,
+                starts_count INTEGER DEFAULT 0,
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        
+        # Таблица логов активности
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_activity_log (
+                id SERIAL PRIMARY KEY,
+                user_id BIGINT,
+                username VARCHAR(100),
+                chat_id VARCHAR(20),
+                action VARCHAR(50),
+                content TEXT,
+                timestamp TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        
+        # Таблица сообщений
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS messages (
+                id SERIAL PRIMARY KEY,
+                chat_id VARCHAR(20) NOT NULL,
+                role VARCHAR(20) NOT NULL,
+                content TEXT NOT NULL,
+                timestamp TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        
+        # Индекс для быстрого поиска истории
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_messages_chat_id_timestamp 
+            ON messages (chat_id, timestamp DESC)
+        """)
+        
+        # Таблица профилей пользователей
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_profile (
+                chat_id VARCHAR(20) PRIMARY KEY,
+                username VARCHAR(100),
+                gender VARCHAR(20),
+                age_group VARCHAR(20),
+                lucid_dreaming VARCHAR(20),
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+    
+    conn.commit()
+    print("✅ Таблицы инициализированы")
+
+# Инициализируем таблицы при запуске
+init_tables()
+
 MAX_TOKENS = 1400
 MAX_HISTORY = 10
 
@@ -50,57 +114,70 @@ MAIN_MENU = ReplyKeyboardMarkup(
 
 # --- Лог активности ---
 def log_activity(user, chat_id, action, content=""):
-    with conn.cursor() as cur:
-        cur.execute("""
-            INSERT INTO user_activity_log (user_id, username, chat_id, action, content)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (
-            user.id,
-            f"@{user.username}" if user.username else None,
-            chat_id,
-            action,
-            content[:1000]
-        ))
-    conn.commit()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO user_activity_log (user_id, username, chat_id, action, content)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (
+                user.id,
+                f"@{user.username}" if user.username else None,
+                chat_id,
+                action,
+                content[:1000]
+            ))
+        conn.commit()
+    except Exception as e:
+        print(f"❌ Ошибка логирования активности: {e}")
+        # Сбрасываем транзакцию при ошибке
+        conn.rollback()
 
 # --- Обновление статистики ---
 def update_user_stats(user, chat_id: str, message_text: str):
     username = f"@{user.username}" if user.username else None
 
-    with conn.cursor() as cur:
-        cur.execute("""
-            INSERT INTO user_stats (chat_id, username, messages_sent, symbols_sent, updated_at)
-            VALUES (%s, %s, 1, %s, now())
-            ON CONFLICT (chat_id) DO UPDATE
-            SET 
-                messages_sent = user_stats.messages_sent + 1,
-                symbols_sent = user_stats.symbols_sent + %s,
-                username = COALESCE(EXCLUDED.username, user_stats.username),
-                updated_at = now()
-        """, (
-            chat_id,
-            username,
-            len(message_text),
-            len(message_text)
-        ))
-    conn.commit()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO user_stats (chat_id, username, messages_sent, symbols_sent, updated_at)
+                VALUES (%s, %s, 1, %s, now())
+                ON CONFLICT (chat_id) DO UPDATE
+                SET 
+                    messages_sent = user_stats.messages_sent + 1,
+                    symbols_sent = user_stats.symbols_sent + %s,
+                    username = COALESCE(EXCLUDED.username, user_stats.username),
+                    updated_at = now()
+            """, (
+                chat_id,
+                username,
+                len(message_text),
+                len(message_text)
+            ))
+        conn.commit()
+    except Exception as e:
+        print(f"❌ Ошибка обновления статистики: {e}")
+        conn.rollback()
 
 def increment_start_count(user, chat_id: str):
     username = f"@{user.username}" if user.username else None
-    with conn.cursor() as cur:
-        cur.execute("""
-            INSERT INTO user_stats (chat_id, username, starts_count, updated_at)
-            VALUES (%s, %s, 1, now())
-            ON CONFLICT (chat_id) DO UPDATE
-            SET 
-                starts_count = user_stats.starts_count + 1,
-                username = COALESCE(EXCLUDED.username, user_stats.username),
-                updated_at = now()
-        """, (
-            chat_id,
-            username
-        ))
-    conn.commit()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO user_stats (chat_id, username, starts_count, updated_at)
+                VALUES (%s, %s, 1, now())
+                ON CONFLICT (chat_id) DO UPDATE
+                SET 
+                    starts_count = user_stats.starts_count + 1,
+                    username = COALESCE(EXCLUDED.username, user_stats.username),
+                    updated_at = now()
+            """, (
+                chat_id,
+                username
+            ))
+        conn.commit()
+    except Exception as e:
+        print(f"❌ Ошибка обновления счетчика стартов: {e}")
+        conn.rollback()
 
 
 # --- Обработчик сообщений ---
@@ -434,25 +511,29 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif query.data == "admin_activity":
         # Последняя активность
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT action, COUNT(*) as count
-                FROM user_activity_log 
-                WHERE timestamp >= NOW() - INTERVAL '24 hours'
-                GROUP BY action
-                ORDER BY count DESC
-                LIMIT 10
-            """)
-            activities = cur.fetchall()
-        
-        if activities:
-            activity_text = "\n".join([f"• {action}: {count}" for action, count in activities])
-            await query.edit_message_text(
-                f"📋 *Активность за 24 часа*\n\n{activity_text}",
-                parse_mode='Markdown'
-            )
-        else:
-            await query.edit_message_text("📋 Нет активности за последние 24 часа.")
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT action, COUNT(*) as count
+                    FROM user_activity_log 
+                    WHERE timestamp >= NOW() - INTERVAL '24 hours'
+                    GROUP BY action
+                    ORDER BY count DESC
+                    LIMIT 10
+                """)
+                activities = cur.fetchall()
+            
+            if activities:
+                activity_text = "\n".join([f"• {action}: {count}" for action, count in activities])
+                await query.edit_message_text(
+                    f"📋 *Активность за 24 часа*\n\n{activity_text}",
+                    parse_mode='Markdown'
+                )
+            else:
+                await query.edit_message_text("📋 Нет активности за последние 24 часа.")
+        except Exception as e:
+            print(f"❌ Ошибка получения активности: {e}")
+            await query.edit_message_text("📋 Ошибка при получении данных активности.")
     
     # Обработчики подтверждения рассылки
     elif query.data == "broadcast_confirm_yes":
@@ -466,16 +547,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def get_all_users():
     """Получить список всех пользователей из базы данных"""
-    with conn.cursor() as cur:
-        cur.execute("""
-            SELECT chat_id 
-            FROM user_stats 
-            WHERE chat_id IS NOT NULL 
-            GROUP BY chat_id
-            ORDER BY MAX(updated_at) DESC
-        """)
-        users = cur.fetchall()
-        return [str(user[0]) for user in users]
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT chat_id 
+                FROM user_stats 
+                WHERE chat_id IS NOT NULL 
+                GROUP BY chat_id
+                ORDER BY MAX(updated_at) DESC
+            """)
+            users = cur.fetchall()
+            return [str(user[0]) for user in users]
+    except Exception as e:
+        print(f"❌ Ошибка получения пользователей: {e}")
+        return []
 
 async def send_broadcast_message_content(context, chat_id: str, content_data):
     """Отправить контент (текст, фото, документ и т.д.) одному пользователю"""
