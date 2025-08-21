@@ -115,6 +115,33 @@ def count_user_dreams(chat_id: str) -> int:
         """, (chat_id,))
         return cur.fetchone()[0]
 
+# --- Удаление сна ---
+def delete_dream(chat_id: str, dream_id: int) -> bool:
+    """Удаляет сон пользователя по ID"""
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                DELETE FROM dreams 
+                WHERE id = %s AND chat_id = %s
+            """, (dream_id, chat_id))
+            deleted_count = cur.rowcount
+        conn.commit()
+        return deleted_count > 0
+    except Exception as e:
+        print(f"Ошибка удаления сна: {e}")
+        return False
+
+# --- Получение конкретного сна ---
+def get_dream_by_id(chat_id: str, dream_id: int):
+    """Получает конкретный сон по ID"""
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT id, dream_text, interpretation, source_type, created_at, dream_date
+            FROM dreams 
+            WHERE id = %s AND chat_id = %s
+        """, (dream_id, chat_id))
+        return cur.fetchone()
+
 # --- Default system prompt ---
 DEFAULT_SYSTEM_PROMPT = """You are a qualified dream analyst trained in the methodology of C.G. Jung, with deep knowledge of astrology and esotericism, working within the Western psychological tradition. You interpret dreams as unique messages from the unconscious, drawing on archetypes, symbols, and the collective unconscious. You may reference mythology, astrology, or esoteric concepts metaphorically, if they enrich meaning and maintain internal coherence. Use simple, clear, human language. Avoid quotation marks for symbols and refrain from using specialized terminology. Your task is to identify key images, archetypes, and symbols, and explain their significance for inner development. You do not predict the future, give advice, or act as a therapist. Interpretations must be hypothetical, respectful, and free from rigid or generic meanings. If the user provides the date and location of the dream and requests it, include metaphorical astrological context (e.g. Moon phase, the current planetary positions). If the dream is brief, you may ask 1–3 clarifying questions. If the user declines, interpret only what is available. Maintain a supportive and respectful tone. Match the user's style—concise or detailed, light or deep. Never use obscene language, even if requested; replace it with appropriate, standard synonyms. Do not engage in unrelated topics—gently guide the conversation back to dream analysis. Use only Telegram Markdown formatting (e.g. *bold*, _italic_, `code`) and emojis to illustrate symbols (e.g. 🌑, 👁, 🪞). Do not use HTML. Use a paragraph of text to suggest the dream's emotional tone. Try to end your analysis by inviting the user to reflect or respond. Speak Russian using informal 'ты' form with users. Start answers with 🌙 for dream descriptions, ❓ for symbol questions, 💭 for dialogue."""
 
@@ -122,7 +149,7 @@ DEFAULT_SYSTEM_PROMPT = """You are a qualified dream analyst trained in the meth
 MAIN_MENU = ReplyKeyboardMarkup(
     keyboard=[
         ["🌙 Разобрать мой сон"],
-        ["💬 Подписаться на канал автора"]
+        ["📖 Дневник снов", "💬 Подписаться на канал автора"]
     ],
     resize_keyboard=True,
     one_time_keyboard=False
@@ -217,6 +244,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if user_message == "💬 Подписаться на канал автора":
         await channel_view_command(update, context)
+        return
+    
+    if user_message == "📖 Дневник снов":
+        await show_dream_diary(update, context)
         return
 
     # Для обычных пользователей - обрабатываем только текстовые описания снов
@@ -426,6 +457,53 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text(
         "✨ Расскажи мне свой сон, даже если он странный, запутанный или пугающий – так подробно, как можешь. Опиши, по возможности, атмосферу и эмоции, которые его сопровождали. Если хочешь, чтобы я учёл положение планет в толковании – укажи дату и примерное место сна (можно по ближайшему крупному городу)"
     )
+    
+    # Дневник снов callback'и
+    elif query.data.startswith("diary_page:"):
+        page = int(query.data.split(":")[1])
+        await show_dream_diary_callback(update, context, page)
+    
+    elif query.data.startswith("dream_view:"):
+        dream_id = int(query.data.split(":")[1])
+        await show_dream_detail(update, context, dream_id)
+    
+    elif query.data.startswith("dream_delete:"):
+        dream_id = int(query.data.split(":")[1])
+        await delete_dream_confirm(update, context, dream_id)
+    
+    elif query.data.startswith("dream_delete_yes:"):
+        dream_id = int(query.data.split(":")[1])
+        chat_id = str(update.effective_chat.id)
+        user = update.effective_user
+        
+        # Удаляем сон
+        if delete_dream(chat_id, dream_id):
+            log_activity(user, chat_id, "dream_deleted", f"dream_id:{dream_id}")
+            await query.edit_message_text(
+                "✅ *Сон удален*\n\nСон успешно удален из вашего дневника.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("📖 К дневнику", callback_data="diary_page:0")
+                ]]),
+                parse_mode='Markdown'
+            )
+        else:
+            await query.edit_message_text(
+                "❌ *Ошибка*\n\nНе удалось удалить сон. Попробуйте позже.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("📖 К дневнику", callback_data="diary_page:0")
+                ]]),
+                parse_mode='Markdown'
+            )
+    
+    elif query.data == "main_menu":
+        await query.edit_message_text(
+            "🏠 *Главное меню*\n\nВыберите действие:",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🌙 Рассказать сон", callback_data="start_first_dream")],
+                [InlineKeyboardButton("📖 Дневник снов", callback_data="diary_page:0")]
+            ]),
+            parse_mode='Markdown'
+        )
     
     # Админские callback'и
     elif query.data == "admin_broadcast":
@@ -964,6 +1042,216 @@ async def handle_broadcast_confirm_no(update: Update, context: ContextTypes.DEFA
     
     await query.edit_message_text(
         "❌ *Рассылка отменена*\n\nСообщение не было отправлено пользователям.",
+        parse_mode='Markdown'
+    )
+
+# --- UI Дневника снов ---
+async def show_dream_diary(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0):
+    """Показывает список снов пользователя с пагинацией"""
+    chat_id = str(update.effective_chat.id)
+    user = update.effective_user
+    
+    log_activity(user, chat_id, "dream_diary_opened", f"page:{page}")
+    
+    # Получаем сны с пагинацией
+    dreams = get_user_dreams(chat_id, limit=10, offset=page * 10)
+    total_dreams = count_user_dreams(chat_id)
+    
+    if not dreams:
+        await update.message.reply_text(
+            "📖 *Дневник снов пуст*\n\n"
+            "Расскажи мне свой первый сон, и я помогу его понять! "
+            "Все проанализированные сны будут автоматически сохраняться здесь.",
+            reply_markup=MAIN_MENU,
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Формируем список снов
+    total_pages = (total_dreams + 9) // 10  # округляем вверх
+    current_page = page + 1
+    
+    message_text = f"📖 *Дневник снов* (стр. {current_page}/{total_pages})\n\n"
+    
+    keyboard = []
+    
+    for i, dream in enumerate(dreams):
+        dream_id, dream_text, interpretation, source_type, created_at, dream_date = dream
+        
+        # Краткое описание сна (первые 60 символов)
+        dream_preview = dream_text[:60] + "..." if len(dream_text) > 60 else dream_text
+        
+        # Иконка источника
+        source_icon = "🎤" if source_type == "voice" else "✍️"
+        
+        # Форматируем дату
+        date_str = created_at.strftime("%d.%m.%Y")
+        
+        message_text += f"{source_icon} *{date_str}*\n{dream_preview}\n\n"
+        
+        # Кнопка для просмотра полного сна
+        keyboard.append([InlineKeyboardButton(
+            f"📖 Сон {i+1 + page*10}", 
+            callback_data=f"dream_view:{dream_id}"
+        )])
+    
+    # Кнопки навигации
+    nav_buttons = []
+    if page > 0:
+        nav_buttons.append(InlineKeyboardButton("◀️ Назад", callback_data=f"diary_page:{page-1}"))
+    if page < total_pages - 1:
+        nav_buttons.append(InlineKeyboardButton("Вперед ▶️", callback_data=f"diary_page:{page+1}"))
+    
+    if nav_buttons:
+        keyboard.append(nav_buttons)
+    
+    # Кнопка "В главное меню"
+    keyboard.append([InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")])
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        message_text,
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+
+async def show_dream_diary_callback(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0):
+    """Показывает список снов через callback (для кнопок навигации)"""
+    query = update.callback_query
+    await query.answer()
+    
+    chat_id = str(update.effective_chat.id)
+    user = update.effective_user
+    
+    log_activity(user, chat_id, "dream_diary_page", f"page:{page}")
+    
+    # Получаем сны с пагинацией
+    dreams = get_user_dreams(chat_id, limit=10, offset=page * 10)
+    total_dreams = count_user_dreams(chat_id)
+    
+    if not dreams:
+        await query.edit_message_text(
+            "📖 *Дневник снов пуст*\n\n"
+            "Расскажи мне свой первый сон, и я помогу его понять! "
+            "Все проанализированные сны будут автоматически сохраняться здесь.",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Формируем список снов
+    total_pages = (total_dreams + 9) // 10
+    current_page = page + 1
+    
+    message_text = f"📖 *Дневник снов* (стр. {current_page}/{total_pages})\n\n"
+    
+    keyboard = []
+    
+    for i, dream in enumerate(dreams):
+        dream_id, dream_text, interpretation, source_type, created_at, dream_date = dream
+        
+        # Краткое описание сна
+        dream_preview = dream_text[:60] + "..." if len(dream_text) > 60 else dream_text
+        source_icon = "🎤" if source_type == "voice" else "✍️"
+        date_str = created_at.strftime("%d.%m.%Y")
+        
+        message_text += f"{source_icon} *{date_str}*\n{dream_preview}\n\n"
+        
+        keyboard.append([InlineKeyboardButton(
+            f"📖 Сон {i+1 + page*10}", 
+            callback_data=f"dream_view:{dream_id}"
+        )])
+    
+    # Кнопки навигации
+    nav_buttons = []
+    if page > 0:
+        nav_buttons.append(InlineKeyboardButton("◀️ Назад", callback_data=f"diary_page:{page-1}"))
+    if page < total_pages - 1:
+        nav_buttons.append(InlineKeyboardButton("Вперед ▶️", callback_data=f"diary_page:{page+1}"))
+    
+    if nav_buttons:
+        keyboard.append(nav_buttons)
+    
+    keyboard.append([InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")])
+    
+    await query.edit_message_text(
+        message_text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='Markdown'
+    )
+
+async def show_dream_detail(update: Update, context: ContextTypes.DEFAULT_TYPE, dream_id: int):
+    """Показывает полный сон с толкованием"""
+    query = update.callback_query
+    await query.answer()
+    
+    chat_id = str(update.effective_chat.id)
+    user = update.effective_user
+    
+    log_activity(user, chat_id, "dream_detail_viewed", f"dream_id:{dream_id}")
+    
+    # Получаем сон
+    dream = get_dream_by_id(chat_id, dream_id)
+    
+    if not dream:
+        await query.edit_message_text(
+            "❌ Сон не найден",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("📖 К дневнику", callback_data="diary_page:0")
+            ]])
+        )
+        return
+    
+    dream_id, dream_text, interpretation, source_type, created_at, dream_date = dream
+    
+    # Иконка источника
+    source_icon = "🎤 Голосовое сообщение" if source_type == "voice" else "✍️ Текстовое сообщение"
+    
+    # Форматируем дату
+    date_str = created_at.strftime("%d.%m.%Y в %H:%M")
+    
+    # Формируем сообщение с полным содержанием
+    message_text = (
+        f"📖 *Сон от {date_str}*\n"
+        f"{source_icon}\n\n"
+        f"*🌙 Описание сна:*\n{dream_text}\n\n"
+        f"*✨ Толкование:*\n{interpretation}"
+    )
+    
+    # Обрезаем если слишком длинный
+    if len(message_text) > 4000:
+        message_text = message_text[:3900] + "\n\n_...сообщение обрезано_"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton("📖 К дневнику", callback_data="diary_page:0"),
+            InlineKeyboardButton("🗑️ Удалить", callback_data=f"dream_delete:{dream_id}")
+        ]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await query.edit_message_text(
+        message_text,
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+
+async def delete_dream_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE, dream_id: int):
+    """Подтверждение удаления сна"""
+    query = update.callback_query
+    await query.answer()
+    
+    keyboard = [
+        [
+            InlineKeyboardButton("✅ Да, удалить", callback_data=f"dream_delete_yes:{dream_id}"),
+            InlineKeyboardButton("❌ Отмена", callback_data=f"dream_view:{dream_id}")
+        ]
+    ]
+    
+    await query.edit_message_text(
+        "🗑️ *Удаление сна*\n\nВы уверены, что хотите удалить этот сон из дневника? Это действие нельзя отменить.",
+        reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode='Markdown'
     )
 
