@@ -118,7 +118,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_admin_broadcast_confirmation(update, context)
         return
     
-    user_message = update.message.text
+    # Получаем текст сообщения (может быть из text или caption для медиа)
+    user_message = ""
+    if update.message.text:
+        user_message = update.message.text
+    elif update.message.caption:
+        user_message = update.message.caption
     
     if user_message == "🌙 Разобрать мой сон":
         await start_first_dream_command(update, context)
@@ -126,6 +131,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if user_message == "💬 Подписаться на канал автора":
         await channel_view_command(update, context)
+        return
+
+    # Для обычных пользователей - обрабатываем только текстовые описания снов
+    if not user_message:
+        await update.message.reply_text(
+            "🤔 Я анализирую только текстовые описания снов. Расскажи мне свой сон словами, и я помогу его понять.",
+            reply_markup=MAIN_MENU
+        )
         return
 
     log_activity(user, chat_id, "message", user_message)

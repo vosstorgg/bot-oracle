@@ -4,7 +4,7 @@ import logging
 from fastapi import FastAPI, Request, HTTPException
 from telegram import Update, Bot
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
-from bot_handlers import start_command, button_handler, handle_message, broadcast_command, admin_command, admin_broadcast_callback, cancel_command
+from bot_handlers import start_command, button_handler, handle_message, admin_command, admin_broadcast_callback, cancel_command
 
 # Настройка логирования
 logging.basicConfig(
@@ -27,11 +27,17 @@ telegram_app = Application.builder().token(TELEGRAM_TOKEN).build()
 
 # Добавляем обработчики  
 telegram_app.add_handler(CommandHandler("start", start_command))
-telegram_app.add_handler(CommandHandler("broadcast", broadcast_command))
 telegram_app.add_handler(CommandHandler("admin", admin_command))
 telegram_app.add_handler(CommandHandler("cancel", cancel_command))
 telegram_app.add_handler(CallbackQueryHandler(button_handler))
+# Обработчики для всех типов сообщений (включая медиа)
 telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+telegram_app.add_handler(MessageHandler(filters.PHOTO, handle_message))
+telegram_app.add_handler(MessageHandler(filters.VIDEO, handle_message))
+telegram_app.add_handler(MessageHandler(filters.DOCUMENT, handle_message))
+telegram_app.add_handler(MessageHandler(filters.AUDIO, handle_message))
+telegram_app.add_handler(MessageHandler(filters.VOICE, handle_message))
+telegram_app.add_handler(MessageHandler(filters.Sticker.ALL, handle_message))
 
 from contextlib import asynccontextmanager
 from telegram import BotCommand
@@ -46,12 +52,9 @@ async def lifespan(app: FastAPI):
     await telegram_app.initialize()
     await telegram_app.start()
     
-    # Настраиваем команды бота (скрываем /broadcast от обычных пользователей)
-    public_commands = [
-        BotCommand("start", "Начать работу с ботом анализа снов")
-    ]
-    await telegram_app.bot.set_my_commands(public_commands)
-    logger.info("✅ Команды бота настроены (без /broadcast для обычных пользователей)")
+    # Очищаем все команды из меню бота (используем только inline кнопки)
+    await telegram_app.bot.set_my_commands([])
+    logger.info("✅ Меню команд очищено - используются только inline кнопки")
     
     # Настройка webhook (если указан URL)
     if WEBHOOK_URL:
