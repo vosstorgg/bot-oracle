@@ -201,7 +201,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔮 Что я умею", callback_data="about")],
         [InlineKeyboardButton("💬 Подписаться на канал автора", url="https://t.me/N_W_passage")],
         [InlineKeyboardButton("💎 Донат на развитие", callback_data="donate")],
-        [InlineKeyboardButton("🌙 Разобрать мой сон", callback_data="start_first_dream")]
+        [InlineKeyboardButton("🌙 Разобрать мой сон", callback_data="start_first_dream")],
+        [InlineKeyboardButton("📖 Дневник снов", callback_data="diary_page:0")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
