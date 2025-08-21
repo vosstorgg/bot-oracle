@@ -253,8 +253,7 @@ async def show_dream_detail(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         [
             InlineKeyboardButton("🗑 Удалить", callback_data=f"dream_delete:{dream_id}"),
             InlineKeyboardButton("◀️ К дневнику", callback_data="diary_page:0")
-        ],
-        [InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")]
+        ]
     ]
     
     try:
