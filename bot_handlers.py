@@ -928,18 +928,32 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
             log_activity(user, chat_id, "voice_transcribed", transcribed_text[:100])
             
             if not transcribed_text:
-                await processing_msg.edit_text(
-                    "😔 Не удалось распознать речь в голосовом сообщении. Попробуйте записать заново или отправить текстом.",
-                    reply_markup=MAIN_MENU
-                )
+                try:
+                    await processing_msg.edit_text(
+                        "😔 Не удалось распознать речь в голосовом сообщении. Попробуйте записать заново или отправить текстом.",
+                        reply_markup=MAIN_MENU
+                    )
+                except BadRequest:
+                    await update.message.reply_text(
+                        "😔 Не удалось распознать речь в голосовом сообщении. Попробуйте записать заново или отправить текстом.",
+                        reply_markup=MAIN_MENU
+                    )
                 return
             
             # Обновляем сообщение с результатом расшифровки
-            await processing_msg.edit_text(
-                f"🎤 ➜ 📝 *Расшифровка:* {transcribed_text[:100]}{'...' if len(transcribed_text) > 100 else ''}\n\n"
-                f"〰️ Размышляю над твоим сном...",
-                parse_mode='Markdown'
-            )
+            try:
+                await processing_msg.edit_text(
+                    f"🎤 ➜ 📝 *Расшифровка:* {transcribed_text[:100]}{'...' if len(transcribed_text) > 100 else ''}\n\n"
+                    f"〰️ Размышляю над твоим сном...",
+                    parse_mode='Markdown'
+                )
+            except BadRequest:
+                # Если не удается редактировать, отправляем новое сообщение
+                processing_msg = await update.message.reply_text(
+                    f"🎤 ➜ 📝 *Расшифровка:* {transcribed_text[:100]}{'...' if len(transcribed_text) > 100 else ''}\n\n"
+                    f"〰️ Размышляю над твоим сном...",
+                    parse_mode='Markdown'
+                )
             
             # Обрабатываем расшифрованный текст как обычное сообщение со сном
             await process_dream_text(update, context, transcribed_text, processing_msg)
@@ -953,10 +967,16 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
                 
     except Exception as e:
         log_activity(user, chat_id, "voice_error", str(e))
-        await processing_msg.edit_text(
-            f"❌ Ошибка при обработке голосового сообщения: {e}\n\nПопробуйте отправить текстом.",
-            reply_markup=MAIN_MENU
-        )
+        try:
+            await processing_msg.edit_text(
+                f"❌ Ошибка при обработке голосового сообщения: {e}\n\nПопробуйте отправить текстом.",
+                reply_markup=MAIN_MENU
+            )
+        except BadRequest:
+            await update.message.reply_text(
+                f"❌ Ошибка при обработке голосового сообщения: {e}\n\nПопробуйте отправить текстом.",
+                reply_markup=MAIN_MENU
+            )
 
 async def process_dream_text(update: Update, context: ContextTypes.DEFAULT_TYPE, dream_text: str, message_to_edit=None):
     """Обработка текста сна через OpenAI (используется для текста и голосовых)"""
@@ -1032,6 +1052,10 @@ async def process_dream_text(update: Update, context: ContextTypes.DEFAULT_TYPE,
     
     # Отправляем или редактируем сообщение с результатом
     if message_to_edit:
-        await message_to_edit.edit_text(reply, parse_mode='Markdown')
+        try:
+            await message_to_edit.edit_text(reply, parse_mode='Markdown')
+        except BadRequest:
+            # Если не удается редактировать, отправляем новое сообщение
+            await update.message.reply_text(reply, parse_mode='Markdown', reply_markup=MAIN_MENU)
     else:
         await update.message.reply_text(reply, parse_mode='Markdown', reply_markup=MAIN_MENU)
