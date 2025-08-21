@@ -265,8 +265,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
     thinking_msg = await update.message.reply_text("〰️ Размышляю...")
 
-    # Используем общую функцию для обработки текста сна
-    await process_dream_text(update, context, user_message, thinking_msg)
+    # Используем общую функцию для обработки текста сна (source_type = 'text' по умолчанию)
+    await process_dream_text(update, context, user_message, thinking_msg, 'text')
 
 
 # --- Обработчик команды /start ---
@@ -1252,8 +1252,8 @@ async def show_dream_detail(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     message_text = (
         f"📖 *Сон от {date_str}*\n"
         f"{source_icon}\n\n"
-        f"*🌙 Описание сна:*\n{dream_text}\n\n"
-        f"*✨ Толкование:*\n{interpretation}"
+        f"*💭 Описание сна:*\n\n{dream_text}\n\n"
+        f"*✨ Толкование:*\n\n{interpretation}"
     )
     
     # Обрезаем если слишком длинный
@@ -1465,8 +1465,8 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
                     f"〰️ Размышляю над твоим сном...",
                     parse_mode='Markdown'
                 )
-                # Обрабатываем расшифрованный текст как обычное сообщение со сном
-                await process_dream_text(update, context, transcribed_text, processing_msg)
+                # Обрабатываем расшифрованный текст как голосовое сообщение
+                await process_dream_text(update, context, transcribed_text, processing_msg, 'voice')
             except BadRequest:
                 # Если не удается редактировать, отправляем новое сообщение и обрабатываем без редактирования
                 await update.message.reply_text(
@@ -1475,7 +1475,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
                 )
                 # Отправляем новое сообщение для анализа
                 thinking_msg = await update.message.reply_text("〰️ Размышляю над твоим сном...")
-                await process_dream_text(update, context, transcribed_text, thinking_msg)
+                await process_dream_text(update, context, transcribed_text, thinking_msg, 'voice')
             
         finally:
             # Удаляем временный файл
@@ -1497,7 +1497,7 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
                 reply_markup=MAIN_MENU
             )
 
-async def process_dream_text(update: Update, context: ContextTypes.DEFAULT_TYPE, dream_text: str, message_to_edit=None):
+async def process_dream_text(update: Update, context: ContextTypes.DEFAULT_TYPE, dream_text: str, message_to_edit=None, source_type: str = 'text'):
     """Обработка текста сна через OpenAI (используется для текста и голосовых)"""
     chat_id = str(update.effective_chat.id)
     user = update.effective_user
@@ -1561,10 +1561,7 @@ async def process_dream_text(update: Update, context: ContextTypes.DEFAULT_TYPE,
         # Классифицируем ответ и сохраняем сны в дневник
         message_type = extract_message_type(reply)
         if message_type == 'dream':
-            # Определяем источник (откуда вызвана функция)
-            source_type = 'voice' if message_to_edit else 'text'
-            
-            # Сохраняем сон в дневник
+            # Сохраняем сон в дневник с переданным source_type
             dream_saved = save_dream_to_diary(
                 chat_id=chat_id, 
                 dream_text=dream_text, 
