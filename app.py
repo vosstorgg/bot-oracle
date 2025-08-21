@@ -4,7 +4,7 @@ import logging
 from fastapi import FastAPI, Request, HTTPException
 from telegram import Update, Bot
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
-from bot_handlers import start_command, button_handler, handle_message, broadcast_command
+from bot_handlers import start_command, button_handler, handle_message, broadcast_command, admin_command, admin_broadcast_callback
 
 # Настройка логирования
 logging.basicConfig(
@@ -28,9 +28,10 @@ app = FastAPI(title="Dream Analysis Bot", version="2.0")
 # Создаем Telegram Application
 telegram_app = Application.builder().token(TELEGRAM_TOKEN).build()
 
-# Добавляем обработчики
+# Добавляем обработчики  
 telegram_app.add_handler(CommandHandler("start", start_command))
 telegram_app.add_handler(CommandHandler("broadcast", broadcast_command))
+telegram_app.add_handler(CommandHandler("admin", admin_command))
 telegram_app.add_handler(CallbackQueryHandler(button_handler))
 telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
@@ -42,6 +43,14 @@ async def startup_event():
     # Инициализируем Telegram Application
     await telegram_app.initialize()
     await telegram_app.start()
+    
+    # Настраиваем команды бота (скрываем /broadcast от обычных пользователей)
+    from telegram import BotCommand
+    public_commands = [
+        BotCommand("start", "Начать работу с ботом анализа снов")
+    ]
+    await telegram_app.bot.set_my_commands(public_commands)
+    logger.info("✅ Команды бота настроены (без /broadcast для обычных пользователей)")
     
     # Настройка webhook (если указан URL)
     if WEBHOOK_URL:

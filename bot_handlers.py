@@ -376,6 +376,56 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text(
         "✨ Расскажи мне свой сон, даже если он странный, запутанный или пугающий – так подробно, как можешь. Опиши, по возможности, атмосферу и эмоции, которые его сопровождали. Если хочешь, чтобы я учёл положение планет в толковании – укажи дату и примерное место сна (можно по ближайшему крупному городу)"
     )
+    
+    # Админские callback'и
+    elif query.data == "admin_broadcast":
+        await admin_broadcast_callback(update, context)
+    
+    elif query.data == "admin_stats":
+        # Статистика пользователей  
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT 
+                    COUNT(*) as total_users,
+                    COUNT(CASE WHEN updated_at >= NOW() - INTERVAL '24 hours' THEN 1 END) as active_24h,
+                    COUNT(CASE WHEN updated_at >= NOW() - INTERVAL '7 days' THEN 1 END) as active_7d,
+                    SUM(messages_sent) as total_messages
+                FROM user_stats
+            """)
+            stats = cur.fetchone()
+        
+        if stats:
+            total, active_24h, active_7d, total_messages = stats
+            await query.edit_message_text(
+                f"📊 *Статистика пользователей*\n\n"
+                f"👥 Всего пользователей: {total or 0}\n"
+                f"🟢 Активных за 24ч: {active_24h or 0}\n"
+                f"📅 Активных за 7 дней: {active_7d or 0}\n"
+                f"💬 Всего сообщений: {total_messages or 0}",
+                parse_mode='Markdown'
+            )
+    
+    elif query.data == "admin_activity":
+        # Последняя активность
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT action, COUNT(*) as count
+                FROM user_activity_log 
+                WHERE timestamp >= NOW() - INTERVAL '24 hours'
+                GROUP BY action
+                ORDER BY count DESC
+                LIMIT 10
+            """)
+            activities = cur.fetchall()
+        
+        if activities:
+            activity_text = "\n".join([f"• {action}: {count}" for action, count in activities])
+            await query.edit_message_text(
+                f"📋 *Активность за 24 часа*\n\n{activity_text}",
+                parse_mode='Markdown'
+            )
+        else:
+            await query.edit_message_text("📋 Нет активности за последние 24 часа.")
 
 
 # --- Функции для broadcast ---
@@ -501,3 +551,53 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Логируем результаты
     log_activity(user, chat_id, "broadcast_completed", 
                 f"sent to {results['success']}/{total_users} users")
+
+async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда админ-панели для доступа к административным функциям"""
+    chat_id = str(update.effective_chat.id)
+    user = update.effective_user
+    
+    # Проверка прав админа
+    if chat_id not in ADMIN_CHAT_IDS:
+        await update.message.reply_text("❌ У вас нет прав для выполнения этой команды.")
+        return
+    
+    log_activity(user, chat_id, "admin_panel", "admin accessed admin panel")
+    
+    # Админ-панель с inline кнопками
+    keyboard = [
+        [InlineKeyboardButton("📢 Массовая рассылка", callback_data="admin_broadcast")],
+        [InlineKeyboardButton("📊 Статистика пользователей", callback_data="admin_stats")],
+        [InlineKeyboardButton("📋 Активность бота", callback_data="admin_activity")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        "🔐 *Панель администратора*\n\n"
+        "Выберите действие:",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+
+async def admin_broadcast_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик кнопки массовой рассылки в админ-панели"""
+    query = update.callback_query
+    await query.answer()
+    
+    chat_id = str(update.effective_chat.id)
+    
+    # Проверка прав админа
+    if chat_id not in ADMIN_CHAT_IDS:
+        await query.edit_message_text("❌ У вас нет прав для выполнения этой команды.")
+        return
+    
+    await query.edit_message_text(
+        "📢 *Массовая рассылка*\n\n"
+        "Для отправки сообщения всем пользователям используйте команду:\n\n"
+        "`/broadcast <ваше сообщение>`\n\n"
+        "*Примеры:*\n"
+        "`/broadcast Привет всем! 👋`\n"
+        "`/broadcast *Важное обновление!* Новые функции доступны.`\n\n"
+        "⚠️ *Внимание:* Сообщение будет отправлено всем пользователям бота!",
+        parse_mode='Markdown'
+    )
