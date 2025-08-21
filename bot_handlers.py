@@ -33,11 +33,90 @@ ADMIN_CHAT_IDS = [chat_id.strip() for chat_id in ADMIN_CHAT_IDS if chat_id.strip
 # --- Состояния админов для broadcast ---
 admin_broadcast_states = {}
 
+# --- Инициализация таблицы снов ---
+def init_dreams_table():
+    """Создает таблицу для хранения снов если её нет"""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS dreams (
+                id SERIAL PRIMARY KEY,
+                chat_id VARCHAR(20) NOT NULL,
+                dream_text TEXT NOT NULL,
+                interpretation TEXT NOT NULL,
+                source_type VARCHAR(10) NOT NULL DEFAULT 'text',
+                created_at TIMESTAMP DEFAULT NOW(),
+                dream_date DATE DEFAULT CURRENT_DATE,
+                tags TEXT[] DEFAULT '{}'
+            )
+        """)
+        
+        # Создаем индекс если его нет
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_dreams_chat_id_date 
+            ON dreams (chat_id, created_at DESC)
+        """)
+    conn.commit()
+
+# Инициализируем таблицу при запуске
+init_dreams_table()
+
+# --- Классификация сообщений по эмодзи ---
+def extract_message_type(ai_response: str) -> str:
+    """Извлекает тип сообщения из ответа AI по начальному эмодзи"""
+    if ai_response.startswith('🌙'):
+        return 'dream'
+    elif ai_response.startswith('❓'):
+        return 'question'
+    elif ai_response.startswith('💭'):
+        return 'chat'
+    else:
+        return 'unknown'
+
+# --- Сохранение снов в дневник ---
+def save_dream_to_diary(chat_id: str, dream_text: str, interpretation: str, source_type: str = 'text', dream_date: str = None):
+    """Сохраняет сон в дневник пользователя"""
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO dreams (chat_id, dream_text, interpretation, source_type, dream_date)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (
+                chat_id,
+                dream_text,
+                interpretation,
+                source_type,
+                dream_date if dream_date else datetime.now(timezone.utc).date()
+            ))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Ошибка сохранения сна: {e}")
+        return False
+
+# --- Получение снов пользователя ---
+def get_user_dreams(chat_id: str, limit: int = 10, offset: int = 0):
+    """Получает список снов пользователя с пагинацией"""
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT id, dream_text, interpretation, source_type, created_at, dream_date
+            FROM dreams 
+            WHERE chat_id = %s 
+            ORDER BY created_at DESC 
+            LIMIT %s OFFSET %s
+        """, (chat_id, limit, offset))
+        return cur.fetchall()
+
+# --- Подсчет снов пользователя ---
+def count_user_dreams(chat_id: str) -> int:
+    """Подсчитывает общее количество снов у пользователя"""
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT COUNT(*) FROM dreams WHERE chat_id = %s
+        """, (chat_id,))
+        return cur.fetchone()[0]
+
 # --- Default system prompt ---
-DEFAULT_SYSTEM_PROMPT = (
-    "You are a qualified dream analyst trained in the methodology of C.G. Jung, with deep knowledge of astrology and esotericism, working within the Western psychological tradition. You interpret dreams as unique messages from the unconscious, drawing on archetypes, symbols, and the collective unconscious. You may reference mythology, astrology, or esoteric concepts metaphorically, if they enrich meaning and maintain internal coherence. Use simple, clear, human language. Avoid quotation marks for symbols and refrain from using specialized terminology. Your task is to identify key images, archetypes, and symbols, and explain their significance for inner development. You do not predict the future, give advice, or act as a therapist. Interpretations must be hypothetical, respectful, and free from rigid or generic meanings. If the user provides the date and location of the dream and requests it, include metaphorical astrological context (e.g. Moon phase, the current planetary positions). If the dream is brief, you may ask 1–3 clarifying questions. If the user declines, interpret only what is available. Maintain a supportive and respectful tone. Match the user's style—concise or detailed, light or deep. Never use obscene language, even if requested; replace it with appropriate, standard synonyms. Do not engage in unrelated topics—gently guide the conversation back to dream analysis. Use only Telegram Markdown formatting (e.g. *bold*, _italic_, `code`) and emojis to illustrate symbols (e.g. 🌑, 👁, 🪞). Do not use HTML. "
-"\n\n# User context\n" "Use a paragraph of text to suggest the dream's emotional tone. Try to end your analysis by inviting the user to reflect or respond. Speak Russian using informal 'ты' form with users."   
-)
+DEFAULT_SYSTEM_PROMPT = """You are a qualified dream analyst trained in the methodology of C.G. Jung, with deep knowledge of astrology and esotericism, working within the Western psychological tradition. You interpret dreams as unique messages from the unconscious, drawing on archetypes, symbols, and the collective unconscious. You may reference mythology, astrology, or esoteric concepts metaphorically, if they enrich meaning and maintain internal coherence. Use simple, clear, human language. Avoid quotation marks for symbols and refrain from using specialized terminology. Your task is to identify key images, archetypes, and symbols, and explain their significance for inner development. You do not predict the future, give advice, or act as a therapist. Interpretations must be hypothetical, respectful, and free from rigid or generic meanings. If the user provides the date and location of the dream and requests it, include metaphorical astrological context (e.g. Moon phase, the current planetary positions). If the dream is brief, you may ask 1–3 clarifying questions. If the user declines, interpret only what is available. Maintain a supportive and respectful tone. Match the user's style—concise or detailed, light or deep. Never use obscene language, even if requested; replace it with appropriate, standard synonyms. Do not engage in unrelated topics—gently guide the conversation back to dream analysis. Use only Telegram Markdown formatting (e.g. *bold*, _italic_, `code`) and emojis to illustrate symbols (e.g. 🌑, 👁, 🪞). Do not use HTML. Use a paragraph of text to suggest the dream's emotional tone. Try to end your analysis by inviting the user to reflect or respond. Speak Russian using informal 'ты' form with users. Start answers with 🌙 for dream descriptions, ❓ for symbol questions, 💭 for dialogue."""
 
 # --- Default menu ---
 MAIN_MENU = ReplyKeyboardMarkup(
@@ -1152,6 +1231,25 @@ async def process_dream_text(update: Update, context: ContextTypes.DEFAULT_TYPE,
         reply = response.choices[0].message.content
         
         log_activity(user, chat_id, "dream_interpreted", reply[:300])
+        
+        # Классифицируем ответ и сохраняем сны в дневник
+        message_type = extract_message_type(reply)
+        if message_type == 'dream':
+            # Определяем источник (откуда вызвана функция)
+            source_type = 'voice' if message_to_edit else 'text'
+            
+            # Сохраняем сон в дневник
+            dream_saved = save_dream_to_diary(
+                chat_id=chat_id, 
+                dream_text=dream_text, 
+                interpretation=reply,
+                source_type=source_type
+            )
+            
+            if dream_saved:
+                log_activity(user, chat_id, "dream_saved_to_diary", f"type:{source_type}")
+            else:
+                log_activity(user, chat_id, "dream_save_failed", f"type:{source_type}")
         
     except Exception as e:
         reply = f"❌ Ошибка при анализе сна: {e}"
