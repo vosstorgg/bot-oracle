@@ -1,0 +1,2 @@
+# System dependencies for Python app
+# libpq-dev for psycopg2

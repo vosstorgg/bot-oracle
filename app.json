@@ -1,0 +1,28 @@
+{
+  "name": "Dream Analysis Bot",
+  "description": "Telegram bot for dream interpretation using Jung's methodology",
+  "repository": "https://github.com/vosstorgg/bot-oracle",
+  "buildpacks": [
+    {
+      "url": "https://github.com/heroku/heroku-buildpack-python"
+    }
+  ],
+  "env": {
+    "TELEGRAM_TOKEN": {
+      "description": "Telegram Bot Token from @BotFather",
+      "required": true
+    },
+    "OPENAI_API_KEY": {
+      "description": "OpenAI API Key for GPT-4 and Whisper",
+      "required": true
+    },
+    "WEBHOOK_URL": {
+      "description": "Full webhook URL (https://your-app.railway.app)",
+      "required": true
+    },
+    "SECRET_TOKEN": {
+      "description": "Secret token for webhook security",
+      "required": false
+    }
+  }
+}
