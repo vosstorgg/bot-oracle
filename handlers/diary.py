@@ -263,11 +263,25 @@ async def show_dream_detail(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         [InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")]
     ]
     
-    await query.edit_message_text(
-        message_text,
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode='Markdown'
-    )
+    try:
+        await query.edit_message_text(
+            message_text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+    except BadRequest:
+        # Если сообщение содержит фото и не может быть отредактировано как текст
+        try:
+            await query.delete_message()
+        except Exception:
+            pass
+        
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=message_text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
 
 
 async def delete_dream_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE, dream_id: int):
