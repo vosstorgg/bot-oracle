@@ -1,10 +1,4 @@
-[build]
-builder = "nixpacks"
-
 [deploy]
 healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "never"
-
-[env]
-# Переменные окружения настраиваются в Railway UI
