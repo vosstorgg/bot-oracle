@@ -92,6 +92,11 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         # Проверяем на подозрительность (галлюцинации Whisper)
         should_reject, rejection_reason = ai_service.should_reject_voice_message(transcribed_text, voice.duration)
         
+        # Детальное логирование для диагностики
+        db.log_activity(user, chat_id, "voice_analysis", 
+                       f"duration: {voice.duration}s, words: {len(transcribed_text.split())}, "
+                       f"text: '{transcribed_text[:100]}', should_reject: {should_reject}, reason: {rejection_reason}")
+        
         if should_reject:
             db.log_activity(user, chat_id, "voice_rejected", f"reason: {rejection_reason}, text: {transcribed_text}")
             await processing_msg.edit_text(

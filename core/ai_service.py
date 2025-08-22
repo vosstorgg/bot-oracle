@@ -82,15 +82,18 @@ class AIService:
                 temp_file.write(voice_file_content)
                 temp_file_path = temp_file.name
             
-            # Транскрибируем через Whisper
+            # Транскрибируем через Whisper с улучшенными настройками
             with open(temp_file_path, "rb") as audio_file:
                 transcript = await self.client.audio.transcriptions.create(
                     model="whisper-1",
                     file=audio_file,
-                    language="ru"
+                    language="ru",
+                    # Добавляем параметры для лучшего распознавания
+                    response_format="text",
+                    temperature=0.2  # Немного снижаем температуру для более точного распознавания
                 )
                 
-                return transcript.text.strip()
+                return transcript.strip()
                 
         except Exception as e:
             print(f"❌ Ошибка транскрипции: {e}")
@@ -112,24 +115,26 @@ class AIService:
         text_lower = transcribed_text.lower()
         words = text_lower.split()
         
-        # 1. Проверка на подозрительные фразы
+        # 1. Проверка на подозрительные фразы (только для явных случаев)
         suspicious_phrases = WHISPER_SETTINGS["suspicious_phrases"]
         for phrase in suspicious_phrases:
             if phrase.lower() in text_lower:
-                return True, f"suspicious_phrase: {phrase}"
+                # Для коротких аудио отклоняем сразу, для длинных - только явные случаи
+                if voice_duration < 3 or phrase in ["редактор субтитров", "подписывайтесь на канал", "ставьте лайки"]:
+                    return True, f"suspicious_phrase: {phrase}"
         
-        # 2. Слишком мало слов для длинного аудио (меньше 1 слова в 2 секунды)
-        if voice_duration > 4 and len(words) < voice_duration / 2:
+        # 2. Слишком мало слов для длинного аудио (смягчаем проверку)
+        if voice_duration > 6 and len(words) < voice_duration / 3:  # Было /2, стало /3
             return True, f"too_short_text: {len(words)} words for {voice_duration}s"
         
-        # 3. Только междометия
+        # 3. Только междометия (смягчаем - разрешаем больше междометий)
         interjections = {"ммм", "хмм", "эм", "ага", "угу", "ой", "ах", "ох", "эх", "ух"}
-        if all(word in interjections for word in words) and len(words) > 0:
+        if len(words) <= 2 and all(word in interjections for word in words) and voice_duration > 3:
             return True, "only_interjections"
         
-        # 4. Повторяющиеся символы (ммммм, ааааа и т.д.)
+        # 4. Повторяющиеся символы (смягчаем - разрешаем короткие)
         for word in words:
-            if len(word) > 3 and len(set(word)) == 1:
+            if len(word) > 5 and len(set(word)) == 1:  # Было >3, стало >5
                 return True, f"repetitive_chars: {word}"
         
         return False, ""
@@ -153,6 +158,54 @@ class AIService:
                 return True, reason
         
         return False, ""
+    
+    def test_voice_settings(self, transcribed_text: str, voice_duration: float) -> Dict[str, any]:
+        """Тестовая функция для проверки настроек распознавания голоса"""
+        result = {
+            "duration": voice_duration,
+            "text": transcribed_text,
+            "words_count": len(transcribed_text.split()) if transcribed_text else 0,
+            "checks": {}
+        }
+        
+        # Проверяем каждое условие отдельно
+        if not transcribed_text:
+            result["checks"]["empty_text"] = True
+        else:
+            result["checks"]["empty_text"] = False
+            
+            text_lower = transcribed_text.lower()
+            words = text_lower.split()
+            
+            # Проверка на подозрительные фразы
+            suspicious_phrases = WHISPER_SETTINGS["suspicious_phrases"]
+            found_suspicious = []
+            for phrase in suspicious_phrases:
+                if phrase.lower() in text_lower:
+                    found_suspicious.append(phrase)
+            result["checks"]["suspicious_phrases"] = found_suspicious
+            
+            # Проверка на количество слов
+            if voice_duration > 6 and len(words) < voice_duration / 3:
+                result["checks"]["too_short_text"] = True
+            else:
+                result["checks"]["too_short_text"] = False
+            
+            # Проверка на междометия
+            interjections = {"ммм", "хмм", "эм", "ага", "угу", "ой", "ах", "ох", "эх", "ух"}
+            if len(words) <= 2 and all(word in interjections for word in words) and voice_duration > 3:
+                result["checks"]["only_interjections"] = True
+            else:
+                result["checks"]["only_interjections"] = False
+            
+            # Проверка на повторяющиеся символы
+            repetitive_chars = []
+            for word in words:
+                if len(word) > 5 and len(set(word)) == 1:
+                    repetitive_chars.append(word)
+            result["checks"]["repetitive_chars"] = repetitive_chars
+        
+        return result
 
 
 # Глобальный экземпляр AI сервиса
