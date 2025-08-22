@@ -12,7 +12,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 # Импорты обработчиков
 from handlers.user import handle_message, handle_voice_message
 from handlers.profile import start_command, handle_profile_callbacks, handle_info_callbacks, send_start_menu
-from handlers.admin import admin_panel_command, cancel_command, handle_admin_callbacks, handle_admin_broadcast_content, admin_broadcast_states, test_voice_settings_command
+from handlers.admin import admin_panel_command, cancel_command, handle_admin_callbacks, handle_admin_broadcast_content, admin_broadcast_states
 from handlers.diary import handle_diary_callbacks
 
 # Импорты конфигурации
@@ -96,7 +96,6 @@ async def main_message_handler(update, context):
 telegram_app.add_handler(CommandHandler("start", start_command))
 telegram_app.add_handler(CommandHandler("admin", admin_panel_command))
 telegram_app.add_handler(CommandHandler("cancel", cancel_command))
-telegram_app.add_handler(CommandHandler("test_voice", test_voice_settings_command))
 telegram_app.add_handler(CallbackQueryHandler(main_button_handler))
 
 # Обработчики для всех типов сообщений

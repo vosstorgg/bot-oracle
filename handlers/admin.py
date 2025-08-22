@@ -14,12 +14,15 @@ admin_broadcast_states = {}
 
 def is_admin(chat_id: str) -> bool:
     """Проверка, является ли пользователь администратором"""
-    return chat_id in ADMIN_CHAT_IDS
+    # Преобразуем chat_id в строку для корректного сравнения
+    chat_id_str = str(chat_id)
+    return chat_id_str in ADMIN_CHAT_IDS
 
 
 async def admin_panel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда открытия админ панели"""
     chat_id = str(update.effective_chat.id)
+    user = update.effective_user
     
     if not is_admin(chat_id):
         await update.message.reply_text("❌ У вас нет доступа к админ панели.")
@@ -332,44 +335,3 @@ async def show_admin_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Последние:\n{users_preview}",
         parse_mode='Markdown'
     )
-
-
-async def test_voice_settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Тестирование настроек распознавания голоса"""
-    chat_id = str(update.effective_chat.id)
-    
-    if chat_id not in ADMIN_CHAT_IDS:
-        await update.message.reply_text("❌ У вас нет доступа к этой команде.")
-        return
-    
-    # Получаем текущие настройки
-    from core.config import WHISPER_SETTINGS
-    from core.ai_service import ai_service
-    
-    settings_info = f"🔧 *Текущие настройки Whisper:*\n\n"
-    settings_info += f"• Минимальная длительность: {WHISPER_SETTINGS['min_duration']}с\n"
-    settings_info += f"• Макс. длительность для фильтра: {WHISPER_SETTINGS['max_duration_for_phrase_filter']}с\n"
-    settings_info += f"• Подозрительных фраз: {len(WHISPER_SETTINGS['suspicious_phrases'])}\n\n"
-    
-    # Тестируем на примерах
-    test_cases = [
-        ("Привет, как дела?", 3.0),
-        ("Ммм, хмм", 2.0),
-        ("Мне приснился странный сон", 4.0),
-        ("Ага, понятно", 1.5),
-        ("Расскажу тебе свой сон подробно", 6.0)
-    ]
-    
-    settings_info += "🧪 *Тестовые случаи:*\n\n"
-    
-    for text, duration in test_cases:
-        test_result = ai_service.test_voice_settings(text, duration)
-        should_reject, reason = ai_service.should_reject_voice_message(text, duration)
-        
-        status = "❌ ОТКЛОНЕНО" if should_reject else "✅ ПРИНЯТО"
-        settings_info += f"• `{text}` ({duration}с) - {status}\n"
-        if should_reject:
-            settings_info += f"  └ Причина: {reason}\n"
-        settings_info += "\n"
-    
-    await update.message.reply_text(settings_info, parse_mode='Markdown')
