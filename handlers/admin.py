@@ -8,6 +8,11 @@ from core.database import db
 from core.models import AdminBroadcastState, BroadcastResult
 from core.config import ADMIN_CHAT_IDS
 
+# Временная отладочная информация при импорте
+print(f"🔍 DEBUG: Импорт ADMIN_CHAT_IDS = {ADMIN_CHAT_IDS}")
+print(f"🔍 DEBUG: Тип ADMIN_CHAT_IDS = {type(ADMIN_CHAT_IDS)}")
+print(f"🔍 DEBUG: Длина ADMIN_CHAT_IDS = {len(ADMIN_CHAT_IDS) if ADMIN_CHAT_IDS else 0}")
+
 # Глобальный словарь для хранения состояний админов при создании рассылки
 admin_broadcast_states = {}
 
@@ -16,6 +21,14 @@ def is_admin(chat_id: str) -> bool:
     """Проверка, является ли пользователь администратором"""
     # Преобразуем chat_id в строку для корректного сравнения
     chat_id_str = str(chat_id)
+    
+    # Временная отладочная информация
+    print(f"🔍 DEBUG: Проверка админских прав")
+    print(f"🔍 DEBUG: chat_id = {chat_id} (тип: {type(chat_id)})")
+    print(f"🔍 DEBUG: chat_id_str = {chat_id_str} (тип: {type(chat_id_str)})")
+    print(f"🔍 DEBUG: ADMIN_CHAT_IDS = {ADMIN_CHAT_IDS} (тип: {type(ADMIN_CHAT_IDS)})")
+    print(f"🔍 DEBUG: Результат проверки: {chat_id_str in ADMIN_CHAT_IDS}")
+    
     return chat_id_str in ADMIN_CHAT_IDS
 
 
@@ -23,6 +36,12 @@ async def admin_panel_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     """Команда открытия админ панели"""
     chat_id = str(update.effective_chat.id)
     user = update.effective_user
+    
+    # Временная отладочная информация
+    print(f"🔍 DEBUG: Попытка доступа к админ панели")
+    print(f"🔍 DEBUG: chat_id = {chat_id}")
+    print(f"🔍 DEBUG: user.id = {user.id if user else 'None'}")
+    print(f"🔍 DEBUG: username = {user.username if user else 'None'}")
     
     if not is_admin(chat_id):
         await update.message.reply_text("❌ У вас нет доступа к админ панели.")
