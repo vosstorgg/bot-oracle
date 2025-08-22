@@ -61,6 +61,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     thinking_msg = await update.message.reply_text("〰️ Размышляю...")
     
     # Используем общую функцию для обработки текста сна (source_type = 'text' по умолчанию)
+    # Передаем thinking_msg, чтобы "Размышляю..." заменилось на толкование
     await process_dream_text(update, context, user_message, thinking_msg, 'text')
 
 
@@ -107,14 +108,15 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
         db.log_activity(user, chat_id, "voice_transcribed", transcribed_text[:100])
         
         try:
-            # Показываем полную расшифровку
+            # Показываем полную расшифровку и оставляем её видимой
             await processing_msg.edit_text(
-                f"🎤 ➜ 📝 *Расшифровка:* {transcribed_text}\n\n"
-                f"〰️ Размышляю над твоим сном...",
+                f"🎤 ➜ 📝 *Расшифровка:* {transcribed_text}",
                 parse_mode='Markdown'
             )
+            # Отправляем новое сообщение "Размышляю..." для замены на толкование
+            thinking_msg = await update.message.reply_text("〰️ Размышляю над твоим сном...")
             # Обрабатываем расшифрованный текст как голосовое сообщение
-            await process_dream_text(update, context, transcribed_text, processing_msg, 'voice')
+            await process_dream_text(update, context, transcribed_text, thinking_msg, 'voice')
         except BadRequest:
             # Если не удается редактировать, отправляем новое сообщение и обрабатываем без редактирования
             await update.message.reply_text(
@@ -181,7 +183,8 @@ async def process_dream_text(update: Update, context: ContextTypes.DEFAULT_TYPE,
     # Отправляем или редактируем сообщение с результатом
     if message_to_edit:
         try:
-            await message_to_edit.edit_text(reply, parse_mode='Markdown')
+            # Редактируем сообщение "Размышляю..." на толкование
+            await message_to_edit.edit_text(reply, parse_mode='Markdown', reply_markup=MAIN_MENU)
         except BadRequest:
             # Если не удается редактировать, отправляем новое сообщение
             await update.message.reply_text(reply, parse_mode='Markdown', reply_markup=MAIN_MENU)
