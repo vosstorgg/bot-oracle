@@ -59,11 +59,12 @@ MAIN_MENU = ReplyKeyboardMarkup(
 )
 
 # === ADMIN КОНФИГУРАЦИЯ ===
-ADMIN_CHAT_IDS = [
-    # Добавьте сюда chat_id администраторов
-    # Пример: "123456789"
-    "6077159120"  # Основной админ
-]
+ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID", "")
+if not ADMIN_CHAT_ID:
+    print("⚠️ ВНИМАНИЕ: ADMIN_CHAT_ID не установлен в переменных окружения!")
+    print("⚠️ Админские функции будут недоступны!")
+
+ADMIN_CHAT_IDS = [ADMIN_CHAT_ID] if ADMIN_CHAT_ID else []
 
 # === WHISPER НАСТРОЙКИ ===
 WHISPER_SETTINGS = {
