@@ -89,7 +89,10 @@ MAX_TOKENS = 1400
 MAX_HISTORY = 10
 
 # --- Настройки админов ---
-ADMIN_CHAT_IDS = os.getenv("ADMIN_CHAT_IDS", "234526032").split(",")
+# ADMIN_CHAT_ID - переменная окружения с ID админов, разделенными запятыми
+# Поддерживает как одного админа, так и нескольких (через запятые)
+ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID", "234526032")
+ADMIN_CHAT_IDS = ADMIN_CHAT_ID.split(",") if ADMIN_CHAT_ID else []
 ADMIN_CHAT_IDS = [chat_id.strip() for chat_id in ADMIN_CHAT_IDS if chat_id.strip()]
 
 # --- Состояния админов для broadcast ---
