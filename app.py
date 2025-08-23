@@ -6,7 +6,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
-from telegram import Update, BotCommand
+from telegram import Update, BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 
 # Импорты обработчиков
@@ -68,10 +68,70 @@ async def main_button_handler(update, context):
         await handle_diary_callbacks(update, context, query.data)
         return
     
+    # Обработчик сохранения сна в дневник
+    if query.data.startswith("save_dream:"):
+        await handle_save_dream_callback(update, context, query.data)
+        return
+    
     # Обработчики админки
     if query.data.startswith(("admin_", "broadcast_confirm")):
         await handle_admin_callbacks(update, context, query.data)
         return
+
+
+async def handle_save_dream_callback(update, context, callback_data):
+    """Обработчик кнопки 'Сохранить в дневник снов'"""
+    query = update.callback_query
+    chat_id = str(query.message.chat_id)
+    user = update.effective_user
+    
+    try:
+        # Получаем данные сна из временного хранилища
+        pending_dream = context.user_data.get('pending_dream')
+        if not pending_dream:
+            await query.answer("❌ Данные сна не найдены. Попробуйте еще раз.")
+            return
+        
+        # Извлекаем source_type из callback_data
+        source_type = callback_data.split(":")[1]
+        
+        # Сохраняем сон в дневник
+        from core.database import db
+        dream_saved = db.save_dream(
+            chat_id=chat_id,
+            dream_text=pending_dream['dream_text'],
+            interpretation=pending_dream['interpretation'],
+            source_type=source_type
+        )
+        
+        if dream_saved:
+            # Логируем успешное сохранение
+            db.log_activity(user, chat_id, "dream_saved_to_diary", f"type:{source_type}")
+            
+            # Показываем подтверждение
+            await query.answer("✅ Сон сохранен в дневник!")
+            
+            # Обновляем сообщение, убирая кнопку сохранения
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")]
+            ])
+            
+            try:
+                await query.message.edit_reply_markup(reply_markup=keyboard)
+            except Exception:
+                # Если не удается отредактировать, отправляем новое сообщение
+                await query.message.reply_text("✅ Сон успешно сохранен в дневник!", reply_markup=keyboard)
+            
+            # Очищаем временные данные
+            del context.user_data['pending_dream']
+            
+        else:
+            await query.answer("❌ Ошибка при сохранении сна. Попробуйте еще раз.")
+            db.log_activity(user, chat_id, "dream_save_failed", f"type:{source_type}")
+            
+    except Exception as e:
+        await query.answer("❌ Произошла ошибка при сохранении сна.")
+        db.log_activity(user, chat_id, "dream_save_error", str(e))
 
 
 async def main_message_handler(update, context):

@@ -2,7 +2,7 @@
 Обработчики для пользовательских взаимодействий (сны, голосовые сообщения)
 """
 import os
-from telegram import Update
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 from telegram.error import BadRequest
 from core.database import db
@@ -136,8 +136,27 @@ async def process_clarification_question(update: Update, context: ContextTypes.D
         db.save_message(chat_id, "user", question)
         db.save_message(chat_id, "assistant", reply)
         
+        # Определяем тип ответа для создания соответствующей клавиатуры
+        message_type = ai_service.extract_message_type(reply)
+        
+        if message_type == 'dream':
+            # Для толкований снов добавляем кнопку "Сохранить в дневник"
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("📖 Сохранить в дневник снов", callback_data="save_dream:clarification")],
+                [InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")]
+            ])
+            # Сохраняем данные сна во временное хранилище для последующего сохранения
+            context.user_data['pending_dream'] = {
+                'dream_text': question,  # Вопрос пользователя как текст сна
+                'interpretation': reply,
+                'source_type': 'clarification'
+            }
+        else:
+            # Для других типов сообщений используем обычное меню
+            keyboard = MAIN_MENU
+        
         # Отправляем ответ
-        await thinking_msg.edit_text(reply, parse_mode='Markdown', reply_markup=MAIN_MENU)
+        await thinking_msg.edit_text(reply, parse_mode='Markdown', reply_markup=keyboard)
         
     except Exception as e:
         error_msg = f"❌ Ошибка при ответе на вопрос: {e}"
@@ -237,21 +256,8 @@ async def process_dream_text(update: Update, context: ContextTypes.DEFAULT_TYPE,
         reply = await ai_service.analyze_dream(dream_text, history, profile_info)
         db.log_activity(user, chat_id, "dream_interpreted", reply[:300])
         
-        # Классифицируем ответ и сохраняем сны в дневник
+        # Классифицируем ответ для определения типа сообщения
         message_type = ai_service.extract_message_type(reply)
-        if message_type == 'dream':
-            # Сохраняем сон в дневник с переданным source_type
-            dream_saved = db.save_dream(
-                chat_id=chat_id, 
-                dream_text=dream_text, 
-                interpretation=reply,
-                source_type=source_type
-            )
-            
-            if dream_saved:
-                db.log_activity(user, chat_id, "dream_saved_to_diary", f"type:{source_type}")
-            else:
-                db.log_activity(user, chat_id, "dream_save_failed", f"type:{source_type}")
     
     except Exception as e:
         reply = f"❌ Ошибка, повторите ещё раз: {e}"
@@ -260,16 +266,33 @@ async def process_dream_text(update: Update, context: ContextTypes.DEFAULT_TYPE,
     # Сохраняем ответ ассистента
     db.save_message(chat_id, "assistant", reply)
     
+    # Создаем клавиатуру в зависимости от типа сообщения
+    if message_type == 'dream':
+        # Для толкований снов добавляем кнопку "Сохранить в дневник"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📖 Сохранить в дневник снов", callback_data=f"save_dream:{source_type}")],
+            [InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")]
+        ])
+        # Сохраняем данные сна во временное хранилище для последующего сохранения
+        context.user_data['pending_dream'] = {
+            'dream_text': dream_text,
+            'interpretation': reply,
+            'source_type': source_type
+        }
+    else:
+        # Для других типов сообщений используем обычное меню
+        keyboard = MAIN_MENU
+    
     # Отправляем или редактируем сообщение с результатом
     if message_to_edit:
         try:
             # Редактируем сообщение "Размышляю..." на толкование
-            await message_to_edit.edit_text(reply, parse_mode='Markdown', reply_markup=MAIN_MENU)
+            await message_to_edit.edit_text(reply, parse_mode='Markdown', reply_markup=keyboard)
         except BadRequest:
             # Если не удается редактировать, отправляем новое сообщение
-            await update.message.reply_text(reply, parse_mode='Markdown', reply_markup=MAIN_MENU)
+            await update.message.reply_text(reply, parse_mode='Markdown', reply_markup=keyboard)
     else:
-        await update.message.reply_text(reply, parse_mode='Markdown', reply_markup=MAIN_MENU)
+        await update.message.reply_text(reply, parse_mode='Markdown', reply_markup=keyboard)
 
 
 async def start_first_dream_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
