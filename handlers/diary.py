@@ -167,7 +167,7 @@ async def show_dream_diary_callback(update: Update, context: ContextTypes.DEFAUL
     keyboard = []
     
     for i, dream in enumerate(dreams):
-        dream_id, dream_text, interpretation, source_type, created_at, dream_date = dream
+        dream_id, dream_text, interpretation, astrological_interpretation, source_type, created_at, dream_date = dream
         
         # Краткое описание для кнопки
         dream_preview = MessageFormatter.format_dream_preview(dream_text, 35)
