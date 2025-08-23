@@ -13,7 +13,7 @@ async def send_start_menu(chat_id, context, user):
     keyboard = [
         [InlineKeyboardButton("🧾 Познакомимся?", callback_data="start_profile")],
         [InlineKeyboardButton("🔮 Что я умею", callback_data="about")],
-        [InlineKeyboardButton("💬 Подписаться на канал автора", url="https://t.me/N_W_passage")],
+                    [InlineKeyboardButton("💌 Подписаться на канал автора", url="https://t.me/N_W_passage")],
         [InlineKeyboardButton("💎 Донат на развитие", callback_data="donate")],
         [InlineKeyboardButton("🌙 Разобрать мой сон", callback_data="start_first_dream")],
         [InlineKeyboardButton("📖 Дневник снов", callback_data="diary_page:0")]
@@ -205,14 +205,14 @@ async def handle_info_callbacks(update: Update, context: ContextTypes.DEFAULT_TY
                     photo=photo,
                     caption="💰Спасибо тебе за желание поддержать проект! У нас ещё множество интересных идей для реализации!",
                     reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("Перейти к оплате", url=LINKS["donation"])]
+                        [InlineKeyboardButton("Задонатить!", url=LINKS["donation"])]
                     ])
                 )
         except FileNotFoundError:
             await query.message.reply_text(
                 "💰Спасибо тебе за желание поддержать проект! У нас ещё множество интересных идей для реализации!",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Перейти к оплате", url=LINKS["donation"])]
+                    [InlineKeyboardButton("Задонатить!", url=LINKS["donation"])]
                 ])
             )
     

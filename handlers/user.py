@@ -41,7 +41,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await start_first_dream_command(update, context)
         return
     
-    if user_message == "💬 Подписаться на канал автора":
+    if user_message == "💌 Подписаться на канал автора":
         await channel_view_command(update, context)
         return
     

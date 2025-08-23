@@ -43,7 +43,7 @@ DEFAULT_SYSTEM_PROMPT = """#Role You are a qualified Jungian dream analyst with 
 MAIN_MENU = ReplyKeyboardMarkup(
     keyboard=[
         ["🌙 Разобрать мой сон"],
-        ["📖 Дневник снов", "💬 Подписаться на канал автора"]
+        ["📖 Дневник снов", "💌 Подписаться на канал автора"]
     ],
     resize_keyboard=True,
     one_time_keyboard=False
