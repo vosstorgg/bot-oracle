@@ -89,7 +89,7 @@ class AIService:
             # Создаем специальный промпт для астрологического анализа
             date_info = f"Дата сна: {dream_date}" if dream_date else "Дата сна: не указана"
             
-            astrological_prompt = f"""PROMPT = "#Role You are an experienced astrologer; #Task Give ONLY an astrological analysis of the dream, without repeating or retelling any previous interpretation; {date_info} USER'S DREAM: {dream_text}; #Rules Start with 🔮 emoji + warm introductory paragraph (like regular dream interpretation), then use astrological approach: planets, zodiac signs, houses, aspects; link dream symbols with astrological archetypes; if dream date is given, use it; be thorough & supportive; structure analysis with emojis; #Usercontext End by inviting reflection/response; write in Russian using informal 'ты'."""
+            astrological_prompt = f"""PROMPT = "#Role You are an experienced astrologer; #Task Give ONLY an astrological analysis of the dream, without repeating or retelling any previous interpretation; {date_info} USER'S DREAM: {dream_text}; #Rules Start with 🔮 emoji + brief warm introduction connecting dream to astrological analysis (2-3 sentences max), then use astrological approach: planets, zodiac signs, houses, aspects; link dream symbols with astrological archetypes; if dream date is given, use it; be thorough & supportive; structure analysis with emojis; #Usercontext End by inviting reflection/response; write in Russian using informal 'ты'."""
 
             response = await self.client.chat.completions.create(
                 model=AI_SETTINGS["model"],
