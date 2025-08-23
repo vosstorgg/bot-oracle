@@ -49,9 +49,13 @@ class AIService:
         try:
             prompt = self.build_prompt(profile_info)
             
+            # Добавляем дату сна в промпт (по умолчанию сегодня)
+            today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            dream_with_date = f"Сон от {today_str}:\n{dream_text}"
+            
             response = await self.client.chat.completions.create(
                 model=AI_SETTINGS["model"],
-                messages=[{"role": "system", "content": prompt}] + history,
+                messages=[{"role": "system", "content": prompt}] + history + [{"role": "user", "content": dream_with_date}],
                 temperature=AI_SETTINGS["temperature"],
                 max_tokens=AI_SETTINGS["max_tokens"]
             )

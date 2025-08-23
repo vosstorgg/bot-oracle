@@ -102,26 +102,52 @@ async def handle_save_dream_callback(update, context, callback_data):
         
         # Сохраняем сон в дневник
         from core.database import db
-        dream_saved = db.save_dream(
-            chat_id=chat_id,
-            dream_text=pending_dream['dream_text'],
-            interpretation=pending_dream['interpretation'],
-            source_type=source_type
-        )
+        
+        # Проверяем, есть ли астрологическое толкование
+        has_astrological = 'astrological_interpretation' in pending_dream
+        
+        if has_astrological:
+            # Сохраняем ОБА толкования: обычное и астрологическое
+            dream_saved = db.save_dream(
+                chat_id=chat_id,
+                dream_text=pending_dream['dream_text'],
+                interpretation=pending_dream['interpretation'],  # Обычное толкование
+                source_type=source_type
+            )
+            
+            # Сохраняем астрологическое толкование как отдельную запись
+            astrological_saved = db.save_dream(
+                chat_id=chat_id,
+                dream_text=pending_dream['dream_text'],
+                interpretation=pending_dream['astrological_interpretation'],  # Астрологическое толкование
+                source_type=f"astrological_{source_type}"
+            )
+            
+            dream_saved = dream_saved and astrological_saved
+            save_message = "✅ Сон с обычным и астрологическим толкованием сохранен в дневник!"
+        else:
+            # Сохраняем только обычное толкование
+            dream_saved = db.save_dream(
+                chat_id=chat_id,
+                dream_text=pending_dream['dream_text'],
+                interpretation=pending_dream['interpretation'],
+                source_type=source_type
+            )
+            save_message = "✅ Сон сохранен в дневник!"
         
         if dream_saved:
             # Логируем успешное сохранение
-            db.log_activity(user, chat_id, "dream_saved_to_diary", f"type:{source_type}")
+            db.log_activity(user, chat_id, "dream_saved_to_diary", f"type:{source_type}, astrological:{has_astrological}")
             
             # Показываем подтверждение
-            await query.answer("✅ Сон сохранен в дневник!")
+            await query.answer(save_message)
             
             # Обновляем сообщение, убирая кнопку сохранения полностью
             try:
                 await query.message.edit_reply_markup(reply_markup=None)
             except Exception:
                 # Если не удается отредактировать, отправляем новое сообщение
-                await query.message.reply_text("✅ Сон успешно сохранен в дневник!")
+                await query.message.reply_text(save_message)
             
             # Очищаем временные данные
             del context.user_data['pending_dream']
@@ -176,14 +202,23 @@ async def handle_astrological_callback(update, context, callback_data):
         if message_type == 'dream':
             # Для астрологических толкований добавляем кнопку "Сохранить в дневник"
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("📖 Сохранить в дневник снов", callback_data=f"save_dream:astrological_{source_type}")]
+                [InlineKeyboardButton("📖 Сохранить в дневник снов", callback_data=f"save_dream:{source_type}")]
             ])
+            
             # Обновляем временные данные для астрологического толкования
+            # Сохраняем ОБА толкования: обычное и астрологическое
             context.user_data['pending_dream'] = {
                 'dream_text': pending_dream['dream_text'],
-                'interpretation': astrological_reply,
-                'source_type': f'astrological_{source_type}'
+                'interpretation': pending_dream['interpretation'],  # Обычное толкование
+                'astrological_interpretation': astrological_reply,  # Астрологическое толкование
+                'source_type': source_type  # Оригинальный source_type
             }
+            
+            # Убираем кнопки из обычного толкования
+            try:
+                await query.message.edit_reply_markup(reply_markup=None)
+            except Exception:
+                pass  # Игнорируем ошибки при редактировании
         else:
             # Для других типов сообщений без кнопок
             keyboard = None
