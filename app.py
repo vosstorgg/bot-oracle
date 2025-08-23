@@ -121,26 +121,17 @@ async def handle_save_dream_callback(update, context, callback_data):
         has_astrological = pending_dream.get('astrological_interpretation') is not None
         
         if has_astrological:
-            # Сохраняем ОБА толкования: обычное и астрологическое
+            # Сохраняем ОДИН сон с ОБОИМИ толкованиями
             dream_saved = db.save_dream(
                 chat_id=chat_id,
                 dream_text=pending_dream['dream_text'],
                 interpretation=pending_dream['interpretation'],  # Обычное толкование
-                source_type=source_type
+                source_type=source_type,
+                astrological_interpretation=pending_dream['astrological_interpretation']  # Астрологическое толкование
             )
-            
-            # Сохраняем астрологическое толкование как отдельную запись
-            astrological_saved = db.save_dream(
-                chat_id=chat_id,
-                dream_text=pending_dream['dream_text'],
-                interpretation=pending_dream['astrological_interpretation'],  # Астрологическое толкование
-                source_type=f"astrological_{source_type}"
-            )
-            
-            dream_saved = dream_saved and astrological_saved
             save_message = "✅ Сон с обычным и астрологическим толкованием сохранен в дневник!"
         else:
-            # Сохраняем только обычное толкование
+            # Сохраняем сон только с обычным толкованием
             dream_saved = db.save_dream(
                 chat_id=chat_id,
                 dream_text=pending_dream['dream_text'],

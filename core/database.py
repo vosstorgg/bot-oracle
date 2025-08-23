@@ -106,6 +106,7 @@ class DatabaseManager:
                     chat_id VARCHAR(20) NOT NULL,
                     dream_text TEXT NOT NULL,
                     interpretation TEXT NOT NULL,
+                    astrological_interpretation TEXT,
                     source_type VARCHAR(25) NOT NULL DEFAULT 'text',
                     created_at TIMESTAMP DEFAULT NOW(),
                     dream_date DATE DEFAULT CURRENT_DATE,
@@ -253,20 +254,21 @@ class DatabaseManager:
     # === ДНЕВНИК СНОВ ===
     
     def save_dream(self, chat_id: str, dream_text: str, interpretation: str, 
-                   source_type: str = 'text', dream_date: str = None) -> bool:
+                   source_type: str = 'text', dream_date: str = None, 
+                   astrological_interpretation: str = None) -> bool:
         """Сохранение сна в дневник"""
         try:
             with self.conn.cursor() as cur:
                 if dream_date:
                     cur.execute("""
-                        INSERT INTO dreams (chat_id, dream_text, interpretation, source_type, dream_date)
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, (chat_id, dream_text, interpretation, source_type, dream_date))
+                        INSERT INTO dreams (chat_id, dream_text, interpretation, astrological_interpretation, source_type, dream_date)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (chat_id, dream_text, interpretation, astrological_interpretation, source_type, dream_date))
                 else:
                     cur.execute("""
-                        INSERT INTO dreams (chat_id, dream_text, interpretation, source_type)
-                        VALUES (%s, %s, %s, %s)
-                    """, (chat_id, dream_text, interpretation, source_type))
+                        INSERT INTO dreams (chat_id, dream_text, interpretation, astrological_interpretation, source_type)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (chat_id, dream_text, interpretation, astrological_interpretation, source_type))
                 return True
         except Exception as e:
             print(f"❌ Ошибка сохранения сна: {e}")
@@ -276,7 +278,7 @@ class DatabaseManager:
         """Получение снов пользователя с пагинацией"""
         with self.conn.cursor() as cur:
             cur.execute("""
-                SELECT id, dream_text, interpretation, source_type, created_at, dream_date
+                SELECT id, dream_text, interpretation, astrological_interpretation, source_type, created_at, dream_date
                 FROM dreams
                 WHERE chat_id = %s
                 ORDER BY created_at DESC
@@ -296,7 +298,7 @@ class DatabaseManager:
         """Получение конкретного сна по ID"""
         with self.conn.cursor() as cur:
             cur.execute("""
-                SELECT id, dream_text, interpretation, source_type, created_at, dream_date
+                SELECT id, dream_text, interpretation, astrological_interpretation, source_type, created_at, dream_date
                 FROM dreams
                 WHERE chat_id = %s AND id = %s
             """, (chat_id, dream_id))
@@ -409,6 +411,24 @@ class DatabaseManager:
                     print("✅ Миграция БД: поле source_type увеличено до VARCHAR(25)")
                 else:
                     print("✅ Миграция БД: поле source_type уже имеет нужный размер")
+                
+                # Проверяем наличие поля astrological_interpretation
+                cur.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'dreams' AND column_name = 'astrological_interpretation'
+                """)
+                result = cur.fetchone()
+                
+                if not result:
+                    # Добавляем поле astrological_interpretation
+                    cur.execute("""
+                        ALTER TABLE dreams 
+                        ADD COLUMN astrological_interpretation TEXT
+                    """)
+                    print("✅ Миграция БД: добавлено поле astrological_interpretation")
+                else:
+                    print("✅ Миграция БД: поле astrological_interpretation уже существует")
                     
         except Exception as e:
             print(f"⚠️ Ошибка миграции БД: {e}")
