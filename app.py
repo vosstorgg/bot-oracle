@@ -52,6 +52,9 @@ async def main_button_handler(update, context):
     from core.database import db
     db.log_activity(update.effective_user, str(update.effective_chat.id), f"button:{query.data}")
     
+    # Обновляем последнюю активность пользователя
+    db.update_latest_activity(update.effective_user, str(update.effective_chat.id))
+    
     # Обработка главного меню
     if query.data == "main_menu":
         try:

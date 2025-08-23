@@ -44,8 +44,11 @@ class DatabaseManager:
                     chat_id VARCHAR(20) PRIMARY KEY,
                     username VARCHAR(100),
                     messages_sent INTEGER DEFAULT 0,
+                    audio_sent INTEGER DEFAULT 0,
                     symbols_sent INTEGER DEFAULT 0,
                     starts_count INTEGER DEFAULT 0,
+                    dreams_saved INTEGER DEFAULT 0,
+                    latest_activity TIMESTAMP DEFAULT NOW(),
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
@@ -157,18 +160,19 @@ class DatabaseManager:
             ))
     
     def update_user_stats(self, user, chat_id: str, message_text: str):
-        """Обновление статистики пользователя"""
+        """Обновление статистики пользователя для текстовых сообщений"""
         username = f"@{user.username}" if user.username else None
         
         with self.conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO user_stats (chat_id, username, messages_sent, symbols_sent, updated_at)
-                VALUES (%s, %s, 1, %s, now())
+                INSERT INTO user_stats (chat_id, username, messages_sent, symbols_sent, latest_activity, updated_at)
+                VALUES (%s, %s, 1, %s, now(), now())
                 ON CONFLICT (chat_id) DO UPDATE
                 SET 
                     messages_sent = user_stats.messages_sent + 1,
                     symbols_sent = user_stats.symbols_sent + %s,
                     username = COALESCE(EXCLUDED.username, user_stats.username),
+                    latest_activity = now(),
                     updated_at = now()
             """, (
                 chat_id,
@@ -177,17 +181,75 @@ class DatabaseManager:
                 len(message_text)
             ))
     
+    def update_user_stats_audio(self, user, chat_id: str, transcribed_text: str):
+        """Обновление статистики пользователя для голосовых сообщений"""
+        username = f"@{user.username}" if user.username else None
+        
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO user_stats (chat_id, username, audio_sent, symbols_sent, latest_activity, updated_at)
+                VALUES (%s, %s, 1, %s, now(), now())
+                ON CONFLICT (chat_id) DO UPDATE
+                SET 
+                    audio_sent = user_stats.audio_sent + 1,
+                    symbols_sent = user_stats.symbols_sent + %s,
+                    username = COALESCE(EXCLUDED.username, user_stats.username),
+                    latest_activity = now(),
+                    updated_at = now()
+            """, (
+                chat_id,
+                username,
+                len(transcribed_text),
+                len(transcribed_text)
+            ))
+    
     def increment_start_count(self, user, chat_id: str):
         """Увеличение счетчика стартов"""
         username = f"@{user.username}" if user.username else None
         with self.conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO user_stats (chat_id, username, starts_count, updated_at)
-                VALUES (%s, %s, 1, now())
+                INSERT INTO user_stats (chat_id, username, starts_count, latest_activity, updated_at)
+                VALUES (%s, %s, 1, now(), now())
                 ON CONFLICT (chat_id) DO UPDATE
                 SET 
                     starts_count = user_stats.starts_count + 1,
                     username = COALESCE(EXCLUDED.username, user_stats.username),
+                    latest_activity = now(),
+                    updated_at = now()
+            """, (
+                chat_id,
+                username
+            ))
+    
+    def increment_dreams_saved(self, user, chat_id: str):
+        """Увеличение счетчика сохраненных снов"""
+        username = f"@{user.username}" if user.username else None
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO user_stats (chat_id, username, dreams_saved, latest_activity, updated_at)
+                VALUES (%s, %s, 1, now(), now())
+                ON CONFLICT (chat_id) DO UPDATE
+                SET 
+                    dreams_saved = user_stats.dreams_saved + 1,
+                    username = COALESCE(EXCLUDED.username, user_stats.username),
+                    latest_activity = now(),
+                    updated_at = now()
+            """, (
+                chat_id,
+                username
+            ))
+    
+    def update_latest_activity(self, user, chat_id: str):
+        """Обновление времени последней активности пользователя"""
+        username = f"@{user.username}" if user.username else None
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO user_stats (chat_id, username, latest_activity, updated_at)
+                VALUES (%s, %s, now(), now())
+                ON CONFLICT (chat_id) DO UPDATE
+                SET 
+                    username = COALESCE(EXCLUDED.username, user_stats.username),
+                    latest_activity = now(),
                     updated_at = now()
             """, (
                 chat_id,
@@ -206,6 +268,49 @@ class DatabaseManager:
             """)
             users = cur.fetchall()
             return [str(user[0]) for user in users]
+    
+    def get_user_stats_summary(self) -> Dict[str, Any]:
+        """Получить сводную статистику пользователей"""
+        with self.conn.cursor() as cur:
+            # Общие статистики
+            cur.execute("""
+                SELECT 
+                    COUNT(*) as total_users,
+                    SUM(messages_sent) as total_messages,
+                    SUM(audio_sent) as total_audio,
+                    SUM(dreams_saved) as total_dreams_saved,
+                    COUNT(*) FILTER (WHERE latest_activity >= NOW() - INTERVAL '1 day') as active_today,
+                    COUNT(*) FILTER (WHERE latest_activity >= NOW() - INTERVAL '7 days') as active_week
+                FROM user_stats
+            """)
+            stats = cur.fetchone()
+            
+            return {
+                'total_users': stats[0] or 0,
+                'total_messages': stats[1] or 0,
+                'total_audio': stats[2] or 0,
+                'total_dreams_saved': stats[3] or 0,
+                'active_today': stats[4] or 0,
+                'active_week': stats[5] or 0
+            }
+    
+    def get_user_stats_details(self, limit: int = 20) -> List[Tuple]:
+        """Получить детальную статистику пользователей"""
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                SELECT 
+                    chat_id,
+                    username,
+                    messages_sent,
+                    audio_sent,
+                    dreams_saved,
+                    latest_activity,
+                    updated_at
+                FROM user_stats
+                ORDER BY latest_activity DESC
+                LIMIT %s
+            """, (limit,))
+            return cur.fetchall()
     
     # === СООБЩЕНИЯ ===
     
@@ -429,6 +534,58 @@ class DatabaseManager:
                     print("✅ Миграция БД: добавлено поле astrological_interpretation")
                 else:
                     print("✅ Миграция БД: поле astrological_interpretation уже существует")
+                
+                # Миграция user_stats - добавляем новые поля
+                # Проверяем наличие поля audio_sent
+                cur.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'user_stats' AND column_name = 'audio_sent'
+                """)
+                result = cur.fetchone()
+                
+                if not result:
+                    cur.execute("""
+                        ALTER TABLE user_stats 
+                        ADD COLUMN audio_sent INTEGER DEFAULT 0
+                    """)
+                    print("✅ Миграция БД: добавлено поле audio_sent")
+                else:
+                    print("✅ Миграция БД: поле audio_sent уже существует")
+                
+                # Проверяем наличие поля dreams_saved
+                cur.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'user_stats' AND column_name = 'dreams_saved'
+                """)
+                result = cur.fetchone()
+                
+                if not result:
+                    cur.execute("""
+                        ALTER TABLE user_stats 
+                        ADD COLUMN dreams_saved INTEGER DEFAULT 0
+                    """)
+                    print("✅ Миграция БД: добавлено поле dreams_saved")
+                else:
+                    print("✅ Миграция БД: поле dreams_saved уже существует")
+                
+                # Проверяем наличие поля latest_activity
+                cur.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'user_stats' AND column_name = 'latest_activity'
+                """)
+                result = cur.fetchone()
+                
+                if not result:
+                    cur.execute("""
+                        ALTER TABLE user_stats 
+                        ADD COLUMN latest_activity TIMESTAMP DEFAULT NOW()
+                    """)
+                    print("✅ Миграция БД: добавлено поле latest_activity")
+                else:
+                    print("✅ Миграция БД: поле latest_activity уже существует")
                     
         except Exception as e:
             print(f"⚠️ Ошибка миграции БД: {e}")

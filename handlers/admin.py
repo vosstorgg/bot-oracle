@@ -305,33 +305,64 @@ async def show_admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показать статистику для админа"""
     query = update.callback_query
     
-    # Здесь можно добавить сбор подробной статистики из БД
-    all_users = db.get_all_users()
+    # Получаем детальную статистику
+    stats = db.get_user_stats_summary()
     
     await query.edit_message_text(
         f"📊 *Статистика бота*\n\n"
-        f"👥 Всего пользователей: {len(all_users)}\n"
-        f"📈 Активных за сегодня: -\n"
-        f"📝 Всего сообщений: -\n"
-        f"🌙 Интерпретаций снов: -\n\n"
-        f"_Подробная статистика в разработке_",
+        f"👥 Всего пользователей: {stats['total_users']}\n"
+        f"📈 Активных сегодня: {stats['active_today']}\n"
+        f"📅 Активных за неделю: {stats['active_week']}\n\n"
+        f"📝 Всего сообщений: {stats['total_messages']}\n"
+        f"🎤 Голосовых сообщений: {stats['total_audio']}\n"
+        f"💾 Снов сохранено: {stats['total_dreams_saved']}\n\n"
+        f"💬 Среднее сообщений на пользователя: {stats['total_messages'] // max(stats['total_users'], 1)}\n"
+        f"🌙 Средне снов на пользователя: {stats['total_dreams_saved'] // max(stats['total_users'], 1)}",
         parse_mode='Markdown'
     )
 
 
 async def show_admin_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать список пользователей"""
+    """Показать список пользователей с детальной статистикой"""
     query = update.callback_query
     
-    all_users = db.get_all_users()
-    users_preview = "\n".join([f"• {user}" for user in all_users[:10]])
+    # Получаем детальную статистику по пользователям
+    user_details = db.get_user_stats_details(limit=10)
     
-    if len(all_users) > 10:
-        users_preview += f"\n... и ещё {len(all_users) - 10} пользователей"
+    if not user_details:
+        await query.edit_message_text(
+            "👥 *Пользователи бота*\n\nПользователей не найдено.",
+            parse_mode='Markdown'
+        )
+        return
+    
+    users_text = "👥 *Топ активных пользователей*\n\n"
+    
+    for i, (chat_id, username, messages, audio, dreams, last_activity, _) in enumerate(user_details, 1):
+        # Форматируем время последней активности
+        if last_activity:
+            from datetime import datetime, timezone
+            time_diff = datetime.now(timezone.utc) - last_activity
+            if time_diff.days > 0:
+                activity_str = f"{time_diff.days}д назад"
+            elif time_diff.seconds > 3600:
+                activity_str = f"{time_diff.seconds // 3600}ч назад"
+            else:
+                activity_str = "недавно"
+        else:
+            activity_str = "неизвестно"
+        
+        username_str = username or "без имени"
+        users_text += (
+            f"{i}. {username_str}\n"
+            f"   💬 {messages or 0} сообщений, 🎤 {audio or 0} голосовых\n"
+            f"   💾 {dreams or 0} снов, активность: {activity_str}\n\n"
+        )
+    
+    total_users = len(db.get_all_users())
+    users_text += f"📊 Всего пользователей: {total_users}"
     
     await query.edit_message_text(
-        f"👥 *Пользователи бота*\n\n"
-        f"Всего: {len(all_users)}\n\n"
-        f"Последние:\n{users_preview}",
+        users_text,
         parse_mode='Markdown'
     )

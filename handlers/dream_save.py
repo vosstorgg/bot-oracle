@@ -43,6 +43,9 @@ async def handle_save_dream_callback(update, context, callback_data):
     # Логируем успешное сохранение
     db.log_activity(user, chat_id, "dream_saved_to_diary", f"type:{source_type}, astrological:{has_astrological}")
     
+    # Обновляем статистику сохраненных снов
+    db.increment_dreams_saved(user, chat_id)
+    
     # Показываем подтверждение
     await query.answer(save_message)
     

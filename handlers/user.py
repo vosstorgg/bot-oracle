@@ -31,6 +31,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif update.message.caption:
         user_message = update.message.caption
     
+    # Обновляем последнюю активность пользователя
+    db.update_latest_activity(user, chat_id)
+    
     # Проверяем, является ли это ответом на сообщение (Reply)
     if update.message.reply_to_message:
         await handle_reply_message(update, context, user_message)
@@ -169,6 +172,9 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
     
     db.log_activity(user, chat_id, "voice_message", f"duration: {voice.duration}s")
     
+    # Обновляем последнюю активность пользователя
+    db.update_latest_activity(user, chat_id)
+    
     # Отправляем сообщение о начале обработки
     processing_msg = await update.message.reply_text("🎤 Получил голосовое сообщение, расшифровываю...")
     
@@ -202,6 +208,9 @@ async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYP
             return
         
         db.log_activity(user, chat_id, "voice_transcribed", transcribed_text[:100])
+        
+        # Обновляем статистику для голосовых сообщений
+        db.update_user_stats_audio(user, chat_id, transcribed_text)
         
         try:
             # Показываем полную расшифровку и оставляем её видимой
