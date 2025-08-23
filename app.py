@@ -147,10 +147,23 @@ async def handle_save_dream_callback(update, context, callback_data):
             # Показываем подтверждение
             await query.answer(save_message)
             
-            # Обновляем сообщение, убирая кнопку сохранения полностью
+            # Убираем кнопки из всех сообщений с толкованием
             try:
-                await query.message.edit_reply_markup(reply_markup=None)
-            except Exception:
+                # Убираем кнопки из текущего сообщения (астрологического толкования)
+                if query.message.reply_markup:
+                    await query.message.edit_reply_markup(reply_markup=None)
+                
+                # Также убираем кнопки из исходного сообщения с обычным толкованием
+                # Ищем сообщение с исходным толкованием (предыдущее сообщение)
+                chat_history = await context.bot.get_chat_history(chat_id, limit=5)
+                for msg in chat_history:
+                    if msg.text and msg.text != query.message.text and "🔮 Размышляю над астрологическим" not in msg.text:
+                        if msg.reply_markup:
+                            await msg.edit_reply_markup(reply_markup=None)
+                            break
+                            
+            except Exception as e:
+                print(f"🔍 DEBUG: Не удалось убрать кнопки: {e}")
                 # Если не удается отредактировать, отправляем новое сообщение
                 await query.message.reply_text(save_message)
             
@@ -310,8 +323,12 @@ async def perform_astrological_analysis(update, context, pending_dream, source_t
             
             # Убираем кнопки из обычного толкования
             try:
-                await query.message.edit_reply_markup(reply_markup=None)
-            except Exception:
+                # Находим исходное сообщение с толкованием и убираем кнопки
+                original_message = query.message
+                if original_message.reply_markup:
+                    await original_message.edit_reply_markup(reply_markup=None)
+            except Exception as e:
+                print(f"🔍 DEBUG: Не удалось убрать кнопки из исходного сообщения: {e}")
                 pass  # Игнорируем ошибки при редактировании
                 
         else:
@@ -476,6 +493,19 @@ async def perform_astrological_analysis_from_date_input(update, context, pending
             # Обновляем временные данные для астрологического толкования
             # Сохраняем ОБА толкования: обычное и астрологическое
             db.update_pending_dream_astrological(chat_id, astrological_reply)
+            
+            # Убираем кнопки из исходного сообщения с толкованием
+            try:
+                # Ищем сообщение с исходным толкованием (предыдущее сообщение)
+                chat_history = await context.bot.get_chat_history(chat_id, limit=5)
+                for msg in chat_history:
+                    if msg.text and msg.text != astrological_reply and "🔮 Размышляю над астрологическим" not in msg.text:
+                        if msg.reply_markup:
+                            await msg.edit_reply_markup(reply_markup=None)
+                            break
+            except Exception as e:
+                print(f"🔍 DEBUG: Не удалось убрать кнопки из исходного сообщения: {e}")
+                pass
             
         else:
             # Для других типов сообщений без кнопок
