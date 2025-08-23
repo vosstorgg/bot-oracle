@@ -177,6 +177,24 @@ async def handle_save_dream_callback(update, context, callback_data):
                     print(f"🔍 DEBUG: Не удалось получить updates: {e}")
                     # Fallback: просто убираем кнопки из текущего сообщения
                     pass
+                
+                # Также удаляем сообщение "Когда тебе приснился этот сон"
+                try:
+                    updates = await context.bot.get_updates(offset=-1, limit=10)
+                    for update in updates:
+                        if (update.message and 
+                            update.message.chat.id == int(chat_id) and
+                            update.message.text and
+                            "Когда тебе приснился этот сон" in update.message.text):
+                            try:
+                                print(f"🔍 DEBUG: Удаляем сообщение с выбором даты")
+                                await update.message.delete()
+                                break
+                            except Exception as e:
+                                print(f"🔍 DEBUG: Не удалось удалить сообщение с выбором даты: {e}")
+                                continue
+                except Exception as e:
+                    print(f"🔍 DEBUG: Не удалось получить updates для удаления сообщения с выбором даты: {e}")
                             
             except Exception as e:
                 print(f"🔍 DEBUG: Не удалось убрать кнопки: {e}")
@@ -370,6 +388,25 @@ async def perform_astrological_analysis(update, context, pending_dream, source_t
                     print(f"🔍 DEBUG: Не удалось получить updates: {e}")
                     # Fallback: просто убираем кнопки из текущего сообщения
                     pass
+                
+                # Также удаляем сообщение "Когда тебе приснился этот сон"
+                try:
+                    updates = await context.bot.get_updates(offset=-1, limit=10)
+                    for update in updates:
+                        if (update.message and 
+                            update.message.chat.id == int(chat_id) and
+                            update.message.text and
+                            "Когда тебе приснился этот сон" in update.message.text):
+                            try:
+                                print(f"🔍 DEBUG: Удаляем сообщение с выбором даты")
+                                await update.message.delete()
+                                break
+                            except Exception as e:
+                                print(f"🔍 DEBUG: Не удалось удалить сообщение с выбором даты: {e}")
+                                continue
+                except Exception as e:
+                    print(f"🔍 DEBUG: Не удалось получить updates для удаления сообщения с выбором даты: {e}")
+                    
             except Exception as e:
                 print(f"🔍 DEBUG: Не удалось убрать кнопки из исходного сообщения: {e}")
                 pass  # Игнорируем ошибки при редактировании
@@ -562,6 +599,25 @@ async def perform_astrological_analysis_from_date_input(update, context, pending
                     print(f"🔍 DEBUG: Не удалось получить updates: {e}")
                     # Fallback: просто убираем кнопки из текущего сообщения
                     pass
+                
+                # Также удаляем сообщение "Когда тебе приснился этот сон"
+                try:
+                    updates = await context.bot.get_updates(offset=-1, limit=10)
+                    for update in updates:
+                        if (update.message and 
+                            update.message.chat.id == int(chat_id) and
+                            update.message.text and
+                            "Когда тебе приснился этот сон" in update.message.text):
+                            try:
+                                print(f"🔍 DEBUG: Удаляем сообщение с выбором даты")
+                                await update.message.delete()
+                                break
+                            except Exception as e:
+                                print(f"🔍 DEBUG: Не удалось удалить сообщение с выбором даты: {e}")
+                                continue
+                except Exception as e:
+                    print(f"🔍 DEBUG: Не удалось получить updates для удаления сообщения с выбором даты: {e}")
+                    
             except Exception as e:
                 print(f"🔍 DEBUG: Не удалось убрать кнопки из исходного сообщения: {e}")
                 pass
