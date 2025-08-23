@@ -111,16 +111,12 @@ async def handle_save_dream_callback(update, context, callback_data):
             # Показываем подтверждение
             await query.answer("✅ Сон сохранен в дневник!")
             
-            # Обновляем сообщение, убирая кнопку сохранения
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")]
-            ])
-            
+            # Обновляем сообщение, убирая кнопку сохранения полностью
             try:
-                await query.message.edit_reply_markup(reply_markup=keyboard)
+                await query.message.edit_reply_markup(reply_markup=None)
             except Exception:
                 # Если не удается отредактировать, отправляем новое сообщение
-                await query.message.reply_text("✅ Сон успешно сохранен в дневник!", reply_markup=keyboard)
+                await query.message.reply_text("✅ Сон успешно сохранен в дневник!")
             
             # Очищаем временные данные
             del context.user_data['pending_dream']

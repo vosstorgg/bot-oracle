@@ -142,8 +142,7 @@ async def process_clarification_question(update: Update, context: ContextTypes.D
         if message_type == 'dream':
             # Для толкований снов добавляем кнопку "Сохранить в дневник"
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("📖 Сохранить в дневник снов", callback_data="save_dream:clarification")],
-                [InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")]
+                [InlineKeyboardButton("📖 Сохранить в дневник снов", callback_data="save_dream:clarification")]
             ])
             # Сохраняем данные сна во временное хранилище для последующего сохранения
             context.user_data['pending_dream'] = {
@@ -152,10 +151,8 @@ async def process_clarification_question(update: Update, context: ContextTypes.D
                 'source_type': 'clarification'
             }
         else:
-            # Для других типов сообщений используем inline клавиатуру
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")]
-            ])
+            # Для других типов сообщений без кнопок
+            keyboard = None
         
         # Отправляем ответ
         await thinking_msg.edit_text(reply, parse_mode='Markdown', reply_markup=keyboard)
@@ -163,11 +160,8 @@ async def process_clarification_question(update: Update, context: ContextTypes.D
     except Exception as e:
         error_msg = f"❌ Ошибка при ответе на вопрос: {e}"
         db.log_activity(user, chat_id, "clarification_error", str(e))
-        # Для ошибок используем inline клавиатуру
-        error_keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")]
-        ])
-        await thinking_msg.edit_text(error_msg, reply_markup=error_keyboard)
+        # Для ошибок без кнопок
+        await thinking_msg.edit_text(error_msg)
 
 
 async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -276,8 +270,7 @@ async def process_dream_text(update: Update, context: ContextTypes.DEFAULT_TYPE,
     if message_type == 'dream':
         # Для толкований снов добавляем кнопку "Сохранить в дневник"
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📖 Сохранить в дневник снов", callback_data=f"save_dream:{source_type}")],
-            [InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")]
+            [InlineKeyboardButton("📖 Сохранить в дневник снов", callback_data=f"save_dream:{source_type}")]
         ])
         # Сохраняем данные сна во временное хранилище для последующего сохранения
         context.user_data['pending_dream'] = {
@@ -286,21 +279,28 @@ async def process_dream_text(update: Update, context: ContextTypes.DEFAULT_TYPE,
             'source_type': source_type
         }
     else:
-        # Для других типов сообщений используем inline клавиатуру
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")]
-        ])
+        # Для других типов сообщений без кнопок
+        keyboard = None
     
     # Отправляем или редактируем сообщение с результатом
     if message_to_edit:
         try:
             # Редактируем сообщение "Размышляю..." на толкование
-            await message_to_edit.edit_text(reply, parse_mode='Markdown', reply_markup=keyboard)
+            if keyboard:
+                await message_to_edit.edit_text(reply, parse_mode='Markdown', reply_markup=keyboard)
+            else:
+                await message_to_edit.edit_text(reply, parse_mode='Markdown')
         except BadRequest:
             # Если не удается редактировать, отправляем новое сообщение
-            await update.message.reply_text(reply, parse_mode='Markdown', reply_markup=keyboard)
+            if keyboard:
+                await update.message.reply_text(reply, parse_mode='Markdown', reply_markup=keyboard)
+            else:
+                await update.message.reply_text(reply, parse_mode='Markdown')
     else:
-        await update.message.reply_text(reply, parse_mode='Markdown', reply_markup=keyboard)
+        if keyboard:
+            await update.message.reply_text(reply, parse_mode='Markdown', reply_markup=keyboard)
+        else:
+            await update.message.reply_text(reply, parse_mode='Markdown')
 
 
 async def start_first_dream_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
