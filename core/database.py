@@ -33,6 +33,7 @@ class DatabaseManager:
         self.init_user_profile_table()
         self.init_user_activity_log_table()
         self.init_dreams_table()
+        self.init_pending_dreams_table()
         self._migrate_database()
     
     def init_user_stats_table(self):
@@ -115,6 +116,27 @@ class DatabaseManager:
             cur.execute("""
                 CREATE INDEX IF NOT EXISTS idx_dreams_chat_id_date 
                 ON dreams (chat_id, created_at DESC)
+            """)
+    
+    def init_pending_dreams_table(self):
+        """Создание таблицы временных данных снов"""
+        with self.conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS pending_dreams (
+                    id SERIAL PRIMARY KEY,
+                    chat_id VARCHAR(20) NOT NULL,
+                    dream_text TEXT NOT NULL,
+                    interpretation TEXT NOT NULL,
+                    source_type VARCHAR(25) NOT NULL,
+                    astrological_interpretation TEXT,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            # Индекс для быстрого поиска временных данных
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_pending_dreams_chat_id 
+                ON pending_dreams (chat_id)
             """)
     
     # === ПОЛЬЗОВАТЕЛИ И СТАТИСТИКА ===
@@ -291,6 +313,78 @@ class DatabaseManager:
                 return cur.rowcount > 0
         except Exception as e:
             print(f"❌ Ошибка удаления сна: {e}")
+            return False
+    
+    # === ВРЕМЕННЫЕ ДАННЫЕ СНОВ ===
+    
+    def save_pending_dream(self, chat_id: str, dream_text: str, interpretation: str, source_type: str) -> bool:
+        """Сохранение временных данных сна для последующего сохранения в дневник"""
+        try:
+            with self.conn.cursor() as cur:
+                # Сначала удаляем старые временные данные для этого пользователя
+                cur.execute("""
+                    DELETE FROM pending_dreams WHERE chat_id = %s
+                """, (chat_id,))
+                
+                # Сохраняем новые временные данные
+                cur.execute("""
+                    INSERT INTO pending_dreams (chat_id, dream_text, interpretation, source_type, created_at)
+                    VALUES (%s, %s, %s, %s, now())
+                """, (chat_id, dream_text, interpretation, source_type))
+                return True
+        except Exception as e:
+            print(f"❌ Ошибка сохранения временных данных сна: {e}")
+            return False
+    
+    def get_pending_dream(self, chat_id: str) -> Optional[Dict[str, Any]]:
+        """Получение временных данных сна"""
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""
+                    SELECT dream_text, interpretation, source_type, created_at
+                    FROM pending_dreams 
+                    WHERE chat_id = %s
+                    ORDER BY created_at DESC 
+                    LIMIT 1
+                """, (chat_id,))
+                result = cur.fetchone()
+                
+                if result:
+                    return {
+                        'dream_text': result[0],
+                        'interpretation': result[1],
+                        'source_type': result[2],
+                        'created_at': result[3]
+                    }
+                return None
+        except Exception as e:
+            print(f"❌ Ошибка получения временных данных сна: {e}")
+            return None
+    
+    def update_pending_dream_astrological(self, chat_id: str, astrological_interpretation: str) -> bool:
+        """Обновление временных данных сна астрологическим толкованием"""
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE pending_dreams 
+                    SET astrological_interpretation = %s, updated_at = now()
+                    WHERE chat_id = %s
+                """, (astrological_interpretation, chat_id))
+                return cur.rowcount > 0
+        except Exception as e:
+            print(f"❌ Ошибка обновления астрологического толкования: {e}")
+            return False
+    
+    def delete_pending_dream(self, chat_id: str) -> bool:
+        """Удаление временных данных сна"""
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""
+                    DELETE FROM pending_dreams WHERE chat_id = %s
+                """, (chat_id,))
+                return True
+        except Exception as e:
+            print(f"❌ Ошибка удаления временных данных сна: {e}")
             return False
     
     def _migrate_database(self):

@@ -101,10 +101,10 @@ async def handle_save_dream_callback(update, context, callback_data):
     user = update.effective_user
     
     try:
-        # Получаем данные сна из временного хранилища
-        pending_dream = context.user_data.get('pending_dream')
-        print(f"🔍 DEBUG: pending_dream = {pending_dream}")
-        print(f"🔍 DEBUG: context.user_data keys = {list(context.user_data.keys())}")
+        # Получаем данные сна из временного хранилища в БД
+        from core.database import db
+        pending_dream = db.get_pending_dream(chat_id)
+        print(f"🔍 DEBUG: pending_dream из БД = {pending_dream}")
         
         if not pending_dream:
             await query.answer("❌ Данные сна не найдены. Попробуйте еще раз.")
@@ -118,7 +118,7 @@ async def handle_save_dream_callback(update, context, callback_data):
         from core.database import db
         
         # Проверяем, есть ли астрологическое толкование
-        has_astrological = 'astrological_interpretation' in pending_dream
+        has_astrological = pending_dream.get('astrological_interpretation') is not None
         
         if has_astrological:
             # Сохраняем ОБА толкования: обычное и астрологическое
@@ -164,7 +164,7 @@ async def handle_save_dream_callback(update, context, callback_data):
                 await query.message.reply_text(save_message)
             
             # Очищаем временные данные
-            del context.user_data['pending_dream']
+            db.delete_pending_dream(chat_id)
             
         else:
             await query.answer("❌ Ошибка при сохранении сна. Попробуйте еще раз.")
@@ -182,8 +182,9 @@ async def handle_astrological_callback(update, context, callback_data):
     user = update.effective_user
     
     try:
-        # Получаем данные сна из временного хранилища
-        pending_dream = context.user_data.get('pending_dream')
+        # Получаем данные сна из временного хранилища в БД
+        from core.database import db
+        pending_dream = db.get_pending_dream(chat_id)
         if not pending_dream:
             await query.answer("❌ Данные сна не найдены. Попробуйте еще раз.")
             return
@@ -226,8 +227,9 @@ async def handle_astrological_date_callback(update, context, callback_data):
         date_type = parts[1]
         source_type = parts[2]
         
-        # Получаем данные сна из временного хранилища
-        pending_dream = context.user_data.get('pending_dream')
+        # Получаем данные сна из временного хранилища в БД
+        from core.database import db
+        pending_dream = db.get_pending_dream(chat_id)
         if not pending_dream:
             await query.answer("❌ Данные сна не найдены. Попробуйте еще раз.")
             return
@@ -312,13 +314,8 @@ async def perform_astrological_analysis(update, context, pending_dream, source_t
             
             # Обновляем временные данные для астрологического толкования
             # Сохраняем ОБА толкования: обычное и астрологическое
-            context.user_data['pending_dream'] = {
-                'dream_text': pending_dream['dream_text'],
-                'interpretation': pending_dream['interpretation'],  # Обычное толкование
-                'astrological_interpretation': astrological_reply,  # Астрологическое толкование
-                'source_type': source_type  # Оригинальный source_type
-            }
-            print(f"🔍 DEBUG: perform_astrological_analysis - обновлен pending_dream: {context.user_data['pending_dream']}")
+            db.update_pending_dream_astrological(chat_id, astrological_reply)
+            print(f"🔍 DEBUG: perform_astrological_analysis - обновлен pending_dream в БД")
             
             # Убираем кнопки из обычного толкования
             try:
@@ -487,12 +484,7 @@ async def perform_astrological_analysis_from_date_input(update, context, pending
             
             # Обновляем временные данные для астрологического толкования
             # Сохраняем ОБА толкования: обычное и астрологическое
-            context.user_data['pending_dream'] = {
-                'dream_text': pending_dream['dream_text'],
-                'interpretation': pending_dream['interpretation'],  # Обычное толкование
-                'astrological_interpretation': astrological_reply,  # Астрологическое толкование
-                'source_type': source_type  # Оригинальный source_type
-            }
+            db.update_pending_dream_astrological(chat_id, astrological_reply)
             
         else:
             # Для других типов сообщений без кнопок

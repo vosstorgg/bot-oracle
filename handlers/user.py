@@ -146,12 +146,8 @@ async def process_clarification_question(update: Update, context: ContextTypes.D
                 [InlineKeyboardButton("🔮 Астрологическое толкование", callback_data="astrological:clarification")]
             ])
             # Сохраняем данные сна во временное хранилище для последующего сохранения
-            context.user_data['pending_dream'] = {
-                'dream_text': question,  # Вопрос пользователя как текст сна
-                'interpretation': reply,
-                'source_type': 'clarification'
-            }
-            print(f"🔍 DEBUG: Сохранен pending_dream для clarification: {context.user_data['pending_dream']}")
+            db.save_pending_dream(chat_id, question, reply, 'clarification')
+            print(f"🔍 DEBUG: Сохранен pending_dream для clarification в БД")
         else:
             # Для других типов сообщений без кнопок
             keyboard = None
@@ -276,12 +272,8 @@ async def process_dream_text(update: Update, context: ContextTypes.DEFAULT_TYPE,
             [InlineKeyboardButton("🔮 Астрологическое толкование", callback_data=f"astrological:{source_type}")]
         ])
         # Сохраняем данные сна во временное хранилище для последующего сохранения
-        context.user_data['pending_dream'] = {
-            'dream_text': dream_text,
-            'interpretation': reply,
-            'source_type': source_type
-        }
-        print(f"🔍 DEBUG: Сохранен pending_dream для {source_type}: {context.user_data['pending_dream']}")
+        db.save_pending_dream(chat_id, dream_text, reply, source_type)
+        print(f"🔍 DEBUG: Сохранен pending_dream для {source_type} в БД")
     else:
         # Для других типов сообщений без кнопок
         keyboard = None
