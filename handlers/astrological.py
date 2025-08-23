@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 
-from core.utils import cleanup_astrological_interface, log_error_and_notify
+from core.utils import cleanup_astrological_interface, cleanup_astrological_interface_by_ids, remove_message_buttons_by_id, log_error_and_notify
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +41,11 @@ async def handle_astrological_callback(update, context, callback_data):
             ])
         )
         
-        # Сохраняем сообщение с кнопками дат для последующего редактирования
-        context.user_data['date_selection_msg'] = date_msg
+        # Сохраняем ID сообщений для последующего удаления
+        context.user_data['date_selection_msg_id'] = date_msg.message_id
+        # Используем ID сообщения с толкованием из предыдущего шага
+        original_message_id = context.user_data.get('dream_interpretation_msg_id', query.message.message_id)
+        context.user_data['original_message_id'] = original_message_id
         
     except Exception as e:
         await query.answer("❌ Произошла ошибка при выборе даты.")
@@ -152,7 +155,18 @@ async def perform_astrological_analysis(update, context, pending_dream, source_t
             logger.info(f"🔍 DEBUG: perform_astrological_analysis - обновлен pending_dream в БД")
             
             # Убираем кнопки из обычного толкования и удаляем сообщение с выбором даты
-            await cleanup_astrological_interface(context, chat_id, astrological_reply)
+            original_message_id = context.user_data.get('original_message_id')
+            date_message_id = context.user_data.get('date_selection_msg_id')
+            
+            if original_message_id or date_message_id:
+                # Используем надежный метод с ID сообщений
+                await cleanup_astrological_interface_by_ids(context, chat_id, original_message_id, date_message_id)
+            else:
+                # Fallback к старому методу
+                await cleanup_astrological_interface(context, chat_id, astrological_reply)
+            
+            # Очищаем ID сообщения с выбором даты, но оставляем ID оригинального толкования для кнопки сохранения
+            context.user_data.pop('date_selection_msg_id', None)
                 
         else:
             # Для других типов сообщений без кнопок
@@ -209,7 +223,18 @@ async def perform_astrological_analysis_from_date_input(update, context, pending
             db.update_pending_dream_astrological(chat_id, astrological_reply)
             
             # Убираем кнопки из исходного сообщения с толкованием и удаляем сообщение с выбором даты
-            await cleanup_astrological_interface(context, chat_id, astrological_reply)
+            original_message_id = context.user_data.get('original_message_id')
+            date_message_id = context.user_data.get('date_selection_msg_id')
+            
+            if original_message_id or date_message_id:
+                # Используем надежный метод с ID сообщений
+                await cleanup_astrological_interface_by_ids(context, chat_id, original_message_id, date_message_id)
+            else:
+                # Fallback к старому методу
+                await cleanup_astrological_interface(context, chat_id, astrological_reply)
+            
+            # Очищаем ID сообщения с выбором даты, но оставляем ID оригинального толкования для кнопки сохранения
+            context.user_data.pop('date_selection_msg_id', None)
             
         else:
             # Для других типов сообщений без кнопок

@@ -6,9 +6,31 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+async def remove_message_buttons_by_id(context, chat_id, message_id):
+    """
+    Удаляет кнопки из конкретного сообщения по его ID
+    
+    Args:
+        context: Telegram context
+        chat_id: ID чата
+        message_id: ID сообщения
+    """
+    try:
+        await context.bot.edit_message_reply_markup(
+            chat_id=chat_id,
+            message_id=message_id,
+            reply_markup=None
+        )
+        logger.info(f"🔍 DEBUG: Убрали кнопки из сообщения {message_id}")
+        return True
+    except Exception as e:
+        logger.warning(f"🔍 DEBUG: Не удалось убрать кнопки из сообщения {message_id}: {e}")
+        return False
+
+
 async def remove_message_buttons(context, chat_id, exclude_texts=None):
     """
-    Удаляет кнопки из сообщений в чате
+    Удаляет кнопки из сообщений в чате (fallback метод)
     
     Args:
         context: Telegram context
@@ -45,9 +67,27 @@ async def remove_message_buttons(context, chat_id, exclude_texts=None):
         return 0
 
 
+async def remove_date_selection_message_by_id(context, chat_id, message_id):
+    """
+    Удаляет сообщение с выбором даты по его ID
+    
+    Args:
+        context: Telegram context
+        chat_id: ID чата
+        message_id: ID сообщения
+    """
+    try:
+        await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
+        logger.info(f"🔍 DEBUG: Удалили сообщение с выбором даты {message_id}")
+        return True
+    except Exception as e:
+        logger.warning(f"🔍 DEBUG: Не удалось удалить сообщение с выбором даты {message_id}: {e}")
+        return False
+
+
 async def remove_date_selection_message(context, chat_id):
     """
-    Удаляет сообщение "Когда тебе приснился этот сон?"
+    Удаляет сообщение "Когда тебе приснился этот сон?" (fallback метод)
     
     Args:
         context: Telegram context
@@ -76,9 +116,35 @@ async def remove_date_selection_message(context, chat_id):
         return False
 
 
+async def cleanup_astrological_interface_by_ids(context, chat_id, original_message_id=None, date_message_id=None):
+    """
+    Очищает интерфейс астрологического толкования по ID сообщений (надежный метод)
+    
+    Args:
+        context: Telegram context
+        chat_id: ID чата
+        original_message_id: ID исходного сообщения с толкованием
+        date_message_id: ID сообщения с выбором даты
+    """
+    success_count = 0
+    
+    # Убираем кнопки из исходного сообщения
+    if original_message_id:
+        if await remove_message_buttons_by_id(context, chat_id, original_message_id):
+            success_count += 1
+    
+    # Удаляем сообщение с выбором даты
+    if date_message_id:
+        if await remove_date_selection_message_by_id(context, chat_id, date_message_id):
+            success_count += 1
+    
+    logger.info(f"🔍 DEBUG: Очистка интерфейса по ID - успешных операций: {success_count}")
+    return success_count > 0
+
+
 async def cleanup_astrological_interface(context, chat_id, current_message_text=""):
     """
-    Очищает интерфейс астрологического толкования - убирает кнопки и удаляет сообщение выбора даты
+    Очищает интерфейс астрологического толкования - убирает кнопки и удаляет сообщение выбора даты (fallback метод)
     
     Args:
         context: Telegram context

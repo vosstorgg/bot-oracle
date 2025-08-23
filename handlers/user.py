@@ -283,17 +283,23 @@ async def process_dream_text(update: Update, context: ContextTypes.DEFAULT_TYPE,
             # Редактируем сообщение "Размышляю..." на толкование
             if keyboard:
                 await message_to_edit.edit_text(reply, parse_mode='Markdown', reply_markup=keyboard)
+                # Сохраняем ID сообщения с толкованием для будущих операций
+                context.user_data['dream_interpretation_msg_id'] = message_to_edit.message_id
             else:
                 await message_to_edit.edit_text(reply, parse_mode='Markdown')
         except BadRequest:
             # Если не удается редактировать, отправляем новое сообщение
             if keyboard:
-                await update.message.reply_text(reply, parse_mode='Markdown', reply_markup=keyboard)
+                sent_msg = await update.message.reply_text(reply, parse_mode='Markdown', reply_markup=keyboard)
+                # Сохраняем ID сообщения с толкованием
+                context.user_data['dream_interpretation_msg_id'] = sent_msg.message_id
             else:
                 await update.message.reply_text(reply, parse_mode='Markdown')
     else:
         if keyboard:
-            await update.message.reply_text(reply, parse_mode='Markdown', reply_markup=keyboard)
+            sent_msg = await update.message.reply_text(reply, parse_mode='Markdown', reply_markup=keyboard)
+            # Сохраняем ID сообщения с толкованием
+            context.user_data['dream_interpretation_msg_id'] = sent_msg.message_id
         else:
             await update.message.reply_text(reply, parse_mode='Markdown')
 

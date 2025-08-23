@@ -2,7 +2,7 @@
 Обработчики для сохранения снов в дневник
 """
 import logging
-from core.utils import cleanup_astrological_interface
+from core.utils import cleanup_astrological_interface, cleanup_astrological_interface_by_ids, remove_message_buttons_by_id
 from core.error_handler import handle_errors, validate_pending_dream, safe_callback_data_split, DatabaseError
 
 logger = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ async def handle_save_dream_callback(update, context, callback_data):
     await query.answer(save_message)
     
     # Убираем кнопки из всех сообщений с толкованием и удаляем сообщение с выбором даты
-    await cleanup_interface_after_save(context, chat_id, query.message.text)
+    await cleanup_interface_after_save(context, chat_id, query.message.text, query.message.message_id)
     
     # Очищаем временные данные
     db.delete_pending_dream(chat_id)
@@ -106,7 +106,7 @@ def _get_save_confirmation_message(has_astrological):
         return "✅ Сон сохранен в дневник!"
 
 
-async def cleanup_interface_after_save(context, chat_id, current_message_text):
+async def cleanup_interface_after_save(context, chat_id, current_message_text, current_message_id):
     """
     Очищает интерфейс после сохранения сна
     
@@ -114,10 +114,28 @@ async def cleanup_interface_after_save(context, chat_id, current_message_text):
         context: Telegram context
         chat_id: ID чата
         current_message_text: Текст текущего сообщения
+        current_message_id: ID текущего сообщения
     """
     try:
-        # Убираем кнопки из всех сообщений с толкованием и удаляем сообщение с выбором даты
-        await cleanup_astrological_interface(context, chat_id, current_message_text)
+        # Убираем кнопки из текущего сообщения
+        await remove_message_buttons_by_id(context, chat_id, current_message_id)
+        
+        # Получаем ID других сообщений из context для очистки
+        dream_interpretation_msg_id = context.user_data.get('dream_interpretation_msg_id')
+        date_message_id = context.user_data.get('date_selection_msg_id')
+        
+        if dream_interpretation_msg_id or date_message_id:
+            # Используем надежный метод с ID сообщений
+            await cleanup_astrological_interface_by_ids(context, chat_id, dream_interpretation_msg_id, date_message_id)
+        else:
+            # Fallback к старому методу
+            await cleanup_astrological_interface(context, chat_id, current_message_text)
+        
+        # Очищаем сохраненные ID из context
+        context.user_data.pop('dream_interpretation_msg_id', None)
+        context.user_data.pop('date_selection_msg_id', None)
+        context.user_data.pop('original_message_id', None)
+        
         logger.info(f"🔍 DEBUG: Интерфейс очищен после сохранения сна")
         
     except Exception as e:
