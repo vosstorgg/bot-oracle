@@ -119,12 +119,11 @@ async def process_clarification_question(update: Update, context: ContextTypes.D
     
     try:
         # Создаем специальный промпт для уточняющего вопроса
-        clarification_prompt = f"""Пользователь задает уточняющий вопрос: {question}
+        clarification_prompt = f"""User asks: {question}
 
-Контекст предыдущего толкования: {context_summary}
+Previous context: {context_summary}
 
-Ответь ТОЛЬКО на конкретный вопрос пользователя. НЕ переписывай толкование сна заново. 
-Будь краток и точен. Используй эмодзи ❓ в начале ответа."""
+#Instructions: Answer the question thoroughly & warmly. Keep supportive tone. Use ❓ emoji. Be helpful & empathetic. Don't rewrite dream interpretation. Give useful advice if relevant. Russian language, informal 'ты'."""
 
         # Получаем ответ от AI
         reply = await ai_service.analyze_clarification_question(question, clarification_prompt)
