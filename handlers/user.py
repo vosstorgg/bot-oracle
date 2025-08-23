@@ -151,6 +151,7 @@ async def process_clarification_question(update: Update, context: ContextTypes.D
                 'interpretation': reply,
                 'source_type': 'clarification'
             }
+            print(f"🔍 DEBUG: Сохранен pending_dream для clarification: {context.user_data['pending_dream']}")
         else:
             # Для других типов сообщений без кнопок
             keyboard = None
@@ -280,6 +281,7 @@ async def process_dream_text(update: Update, context: ContextTypes.DEFAULT_TYPE,
             'interpretation': reply,
             'source_type': source_type
         }
+        print(f"🔍 DEBUG: Сохранен pending_dream для {source_type}: {context.user_data['pending_dream']}")
     else:
         # Для других типов сообщений без кнопок
         keyboard = None

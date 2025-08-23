@@ -103,12 +103,16 @@ async def handle_save_dream_callback(update, context, callback_data):
     try:
         # Получаем данные сна из временного хранилища
         pending_dream = context.user_data.get('pending_dream')
+        print(f"🔍 DEBUG: pending_dream = {pending_dream}")
+        print(f"🔍 DEBUG: context.user_data keys = {list(context.user_data.keys())}")
+        
         if not pending_dream:
             await query.answer("❌ Данные сна не найдены. Попробуйте еще раз.")
             return
         
         # Извлекаем source_type из callback_data
         source_type = callback_data.split(":")[1]
+        print(f"🔍 DEBUG: handle_save_dream_callback - callback_data = {callback_data}, source_type = {source_type}")
         
         # Сохраняем сон в дневник
         from core.database import db
@@ -186,6 +190,7 @@ async def handle_astrological_callback(update, context, callback_data):
         
         # Извлекаем source_type из callback_data
         source_type = callback_data.split(":")[1]
+        print(f"🔍 DEBUG: handle_astrological_callback - callback_data = {callback_data}, source_type = {source_type}")
         
         # Показываем уточнение даты
         await query.answer("🔮 Уточняю дату сна...")
@@ -313,6 +318,7 @@ async def perform_astrological_analysis(update, context, pending_dream, source_t
                 'astrological_interpretation': astrological_reply,  # Астрологическое толкование
                 'source_type': source_type  # Оригинальный source_type
             }
+            print(f"🔍 DEBUG: perform_astrological_analysis - обновлен pending_dream: {context.user_data['pending_dream']}")
             
             # Убираем кнопки из обычного толкования
             try:
