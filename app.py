@@ -187,64 +187,26 @@ async def handle_astrological_callback(update, context, callback_data):
         # Извлекаем source_type из callback_data
         source_type = callback_data.split(":")[1]
         
-        # Показываем "размышляет"
-        await query.answer("🔮 Анализирую сон астрологически...")
+        # Показываем уточнение даты
+        await query.answer("🔮 Уточняю дату сна...")
         
-        # Отправляем сообщение о начале астрологического анализа
-        thinking_msg = await query.message.reply_text("🔮 Размышляю над астрологическим значением твоего сна...")
-        
-        # Получаем астрологическое толкование
-        from core.ai_service import ai_service
-        astrological_reply = await ai_service.analyze_dream_astrologically(
-            pending_dream['dream_text'], 
-            pending_dream['interpretation'],
-            source_type,
-            None  # Без даты для обратной совместимости
+        # Отправляем сообщение с выбором даты
+        date_msg = await query.message.reply_text(
+            "Когда тебе приснился этот сон?",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Сегодня", callback_data=f"astrological_date:today:{source_type}")],
+                [InlineKeyboardButton("Вчера", callback_data=f"astrological_date:yesterday:{source_type}")],
+                [InlineKeyboardButton("Ввести дату", callback_data=f"astrological_date:custom:{source_type}")]
+            ])
         )
         
-        # Логируем астрологическое толкование
-        from core.database import db
-        db.log_activity(user, chat_id, "astrological_interpretation", astrological_reply[:300])
-        db.save_message(chat_id, "assistant", astrological_reply)
-        
-        # Определяем тип ответа для создания соответствующей клавиатуры
-        message_type = ai_service.extract_message_type(astrological_reply)
-        
-        if message_type == 'dream':
-            # Для астрологических толкований добавляем кнопку "Сохранить в дневник"
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("📖 Сохранить в дневник снов", callback_data=f"save_dream:{source_type}")]
-            ])
-            
-            # Обновляем временные данные для астрологического толкования
-            # Сохраняем ОБА толкования: обычное и астрологическое
-            context.user_data['pending_dream'] = {
-                'dream_text': pending_dream['dream_text'],
-                'interpretation': pending_dream['interpretation'],  # Обычное толкование
-                'astrological_interpretation': astrological_reply,  # Астрологическое толкование
-                'source_type': source_type  # Оригинальный source_type
-            }
-            
-            # Убираем кнопки из обычного толкования
-            try:
-                await query.message.edit_reply_markup(reply_markup=None)
-            except Exception:
-                pass  # Игнорируем ошибки при редактировании
-        else:
-            # Для других типов сообщений без кнопок
-            keyboard = None
-        
-        # Отправляем астрологическое толкование
-        if keyboard:
-            await thinking_msg.edit_text(astrological_reply, parse_mode='Markdown', reply_markup=keyboard)
-        else:
-            await thinking_msg.edit_text(astrological_reply, parse_mode='Markdown')
+        # Сохраняем сообщение с кнопками дат для последующего редактирования
+        context.user_data['date_selection_msg'] = date_msg
         
     except Exception as e:
-        await query.answer("❌ Произошла ошибка при астрологическом анализе.")
+        await query.answer("❌ Произошла ошибка при выборе даты.")
         from core.database import db
-        db.log_activity(user, chat_id, "astrological_error", str(e))
-        await thinking_msg.edit_text(f"❌ Ошибка при астрологическом анализе: {e}")
+        db.log_activity(user, chat_id, "astrological_date_error", str(e))
 
 
 async def handle_astrological_date_callback(update, context, callback_data):
