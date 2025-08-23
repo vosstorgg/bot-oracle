@@ -33,6 +33,7 @@ class DatabaseManager:
         self.init_user_profile_table()
         self.init_user_activity_log_table()
         self.init_dreams_table()
+        self._migrate_database()
     
     def init_user_stats_table(self):
         """Создание таблицы статистики пользователей"""
@@ -104,7 +105,7 @@ class DatabaseManager:
                     chat_id VARCHAR(20) NOT NULL,
                     dream_text TEXT NOT NULL,
                     interpretation TEXT NOT NULL,
-                    source_type VARCHAR(10) NOT NULL DEFAULT 'text',
+                    source_type VARCHAR(25) NOT NULL DEFAULT 'text',
                     created_at TIMESTAMP DEFAULT NOW(),
                     dream_date DATE DEFAULT CURRENT_DATE,
                     tags TEXT[] DEFAULT '{}'
@@ -291,6 +292,32 @@ class DatabaseManager:
         except Exception as e:
             print(f"❌ Ошибка удаления сна: {e}")
             return False
+    
+    def _migrate_database(self):
+        """Миграция базы данных"""
+        try:
+            with self.conn.cursor() as cur:
+                # Проверяем текущий размер поля source_type
+                cur.execute("""
+                    SELECT column_name, character_maximum_length 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'dreams' AND column_name = 'source_type'
+                """)
+                result = cur.fetchone()
+                
+                if result and result[1] == 10:
+                    # Увеличиваем размер поля с VARCHAR(10) до VARCHAR(25)
+                    cur.execute("""
+                        ALTER TABLE dreams 
+                        ALTER COLUMN source_type TYPE VARCHAR(25)
+                    """)
+                    print("✅ Миграция БД: поле source_type увеличено до VARCHAR(25)")
+                else:
+                    print("✅ Миграция БД: поле source_type уже имеет нужный размер")
+                    
+        except Exception as e:
+            print(f"⚠️ Ошибка миграции БД: {e}")
+            # Продолжаем работу, так как это не критично
     
     def close(self):
         """Закрытие соединения с БД"""
