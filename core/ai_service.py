@@ -61,6 +61,24 @@ class AIService:
         except Exception as e:
             return f"❌ Ошибка при анализе сна: {e}"
     
+    async def analyze_clarification_question(self, question: str, clarification_prompt: str) -> str:
+        """Анализ уточняющего вопроса через GPT-4"""
+        try:
+            response = await self.client.chat.completions.create(
+                model=AI_SETTINGS["model"],
+                messages=[
+                    {"role": "system", "content": clarification_prompt},
+                    {"role": "user", "content": question}
+                ],
+                temperature=AI_SETTINGS["temperature"],
+                max_tokens=AI_SETTINGS["max_tokens"]
+            )
+            
+            return response.choices[0].message.content
+            
+        except Exception as e:
+            return f"❌ Ошибка при ответе на вопрос: {e}"
+    
     def extract_message_type(self, ai_response: str) -> str:
         """Извлечение типа сообщения из ответа AI"""
         if ai_response.startswith('🌙'):

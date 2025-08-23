@@ -7,6 +7,7 @@ from telegram.ext import ContextTypes
 from telegram.error import BadRequest
 from core.database import db
 from core.ai_service import ai_service
+import re
 from core.config import MAIN_MENU, AI_SETTINGS, IMAGE_PATHS
 
 
@@ -29,6 +30,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_message = update.message.text
     elif update.message.caption:
         user_message = update.message.caption
+    
+    # Проверяем, является ли это ответом на сообщение (Reply)
+    if update.message.reply_to_message:
+        await handle_reply_message(update, context, user_message)
+        return
     
     # Обработка кнопок главного меню
     if user_message == "🌙 Разобрать мой сон":
@@ -63,6 +69,80 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Используем общую функцию для обработки текста сна (source_type = 'text' по умолчанию)
     # Передаем thinking_msg, чтобы "Размышляю..." заменилось на толкование
     await process_dream_text(update, context, user_message, thinking_msg, 'text')
+
+
+async def handle_reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE, question: str):
+    """Обработка уточняющих вопросов через Reply"""
+    chat_id = str(update.effective_chat.id)
+    user = update.effective_user
+    
+    # Получаем сообщение, на которое отвечает пользователь
+    original_message = update.message.reply_to_message
+    
+    # Определяем тип исходного сообщения
+    if original_message.from_user.is_bot:  # Это ответ бота
+        # Извлекаем контекст из предыдущего ответа
+        context_summary = extract_context_from_bot_response(original_message.text)
+        
+        # Отправляем уточняющий вопрос с контекстом
+        await process_clarification_question(update, context, question, context_summary)
+    else:
+        # Это ответ на сообщение пользователя - обычная обработка
+        await process_dream_text(update, context, question)
+
+
+def extract_context_from_bot_response(bot_message: str) -> str:
+    """Извлекает ключевой контекст из ответа бота для уточнений"""
+    if not bot_message:
+        return ""
+    
+    # Убираем эмодзи и форматирование
+    clean_text = re.sub(r'[🌙❓💭*_`]', '', bot_message)
+    
+    # Извлекаем ключевые символы/архетипы (первые 100 символов обычно содержат основу)
+    context = clean_text[:100].strip()
+    
+    return f"Previous interpretation context: {context}..."
+
+
+async def process_clarification_question(update: Update, context: ContextTypes.DEFAULT_TYPE, question: str, context_summary: str):
+    """Обработка уточняющего вопроса с контекстом предыдущего ответа"""
+    chat_id = str(update.effective_chat.id)
+    user = update.effective_user
+    
+    # Логируем уточняющий вопрос
+    db.log_activity(user, chat_id, "clarification_question", question)
+    
+    # Отправляем "размышляет"
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+    thinking_msg = await update.message.reply_text("〰️ Размышляю над твоим вопросом...")
+    
+    try:
+        # Создаем специальный промпт для уточняющего вопроса
+        clarification_prompt = f"""Пользователь задает уточняющий вопрос: {question}
+
+Контекст предыдущего толкования: {context_summary}
+
+Ответь ТОЛЬКО на конкретный вопрос пользователя. НЕ переписывай толкование сна заново. 
+Будь краток и точен. Используй эмодзи ❓ в начале ответа."""
+
+        # Получаем ответ от AI
+        reply = await ai_service.analyze_clarification_question(question, clarification_prompt)
+        
+        # Логируем ответ
+        db.log_activity(user, chat_id, "clarification_answered", reply[:300])
+        
+        # Сохраняем сообщения
+        db.save_message(chat_id, "user", question)
+        db.save_message(chat_id, "assistant", reply)
+        
+        # Отправляем ответ
+        await thinking_msg.edit_text(reply, parse_mode='Markdown', reply_markup=MAIN_MENU)
+        
+    except Exception as e:
+        error_msg = f"❌ Ошибка при ответе на вопрос: {e}"
+        db.log_activity(user, chat_id, "clarification_error", str(e))
+        await thinking_msg.edit_text(error_msg, reply_markup=MAIN_MENU)
 
 
 async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
