@@ -63,7 +63,7 @@ async def show_dream_diary(update: Update, context: ContextTypes.DEFAULT_TYPE, p
     keyboard = []
     
     for i, dream in enumerate(dreams):
-        dream_id, dream_text, interpretation, source_type, created_at, dream_date = dream
+        dream_id, dream_text, interpretation, astrological_interpretation, source_type, created_at, dream_date = dream
         
         # Краткое описание для кнопки
         dream_preview = MessageFormatter.format_dream_preview(dream_text, 35)
@@ -229,7 +229,7 @@ async def show_dream_detail(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         await query.answer("❌ Сон не найден")
         return
     
-    dream_id, dream_text, interpretation, source_type, created_at, dream_date = dream
+    dream_id, dream_text, interpretation, astrological_interpretation, source_type, created_at, dream_date = dream
     
     # Формируем иконку источника
     source_icon = MessageFormatter.get_source_description(source_type)
@@ -244,6 +244,10 @@ async def show_dream_detail(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         f"*💭 Описание сна:*\n\n{dream_text}\n\n"
         f"*✨ Толкование:*\n\n{interpretation}"
     )
+    
+    # Добавляем астрологическое толкование, если оно есть
+    if astrological_interpretation:
+        message_text += f"\n\n*🔮 Астрологическое толкование:*\n\n{astrological_interpretation}"
     
     # Обрезаем если слишком длинный
     message_text = MessageFormatter.truncate_message(message_text, PAGINATION["max_message_length"])
@@ -289,7 +293,7 @@ async def delete_dream_confirm(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.answer("❌ Сон не найден")
         return
     
-    dream_id, dream_text, interpretation, source_type, created_at, dream_date = dream
+    dream_id, dream_text, interpretation, astrological_interpretation, source_type, created_at, dream_date = dream
     date_str = MessageFormatter.format_date(created_at)
     dream_preview = MessageFormatter.format_dream_preview(dream_text, 100)
     
