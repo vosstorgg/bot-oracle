@@ -341,7 +341,7 @@ class DatabaseManager:
         try:
             with self.conn.cursor() as cur:
                 cur.execute("""
-                    SELECT dream_text, interpretation, source_type, created_at
+                    SELECT dream_text, interpretation, source_type, astrological_interpretation, created_at
                     FROM pending_dreams 
                     WHERE chat_id = %s
                     ORDER BY created_at DESC 
@@ -354,7 +354,8 @@ class DatabaseManager:
                         'dream_text': result[0],
                         'interpretation': result[1],
                         'source_type': result[2],
-                        'created_at': result[3]
+                        'astrological_interpretation': result[3],
+                        'created_at': result[4]
                     }
                 return None
         except Exception as e:
