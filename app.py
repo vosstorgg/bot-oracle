@@ -154,17 +154,29 @@ async def handle_save_dream_callback(update, context, callback_data):
                     await query.message.edit_reply_markup(reply_markup=None)
                 
                 # Также убираем кнопки из исходного сообщения с обычным толкованием
-                # Ищем сообщение с исходным толкованием (предыдущее сообщение)
-                chat_history = await context.bot.get_chat_history(chat_id, limit=10)
-                for msg in chat_history:
-                    if (msg.text and 
-                        msg.text != query.message.text and 
-                        "🔮 Размышляю над астрологическим" not in msg.text and
-                        "Когда тебе приснился этот сон" not in msg.text):
-                        if msg.reply_markup:
-                            print(f"🔍 DEBUG: Убираем кнопки из сообщения: {msg.text[:100]}...")
-                            await msg.edit_reply_markup(reply_markup=None)
-                            break
+                # Используем простой подход - убираем кнопки из всех сообщений в чате
+                # Получаем последние сообщения через getUpdates
+                try:
+                    updates = await context.bot.get_updates(offset=-1, limit=10)
+                    for update in updates:
+                        if (update.message and 
+                            update.message.chat.id == int(chat_id) and
+                            update.message.text and 
+                            update.message.text != query.message.text and 
+                            "🔮 Размышляю над астрологическим" not in update.message.text and
+                            "Когда тебе приснился этот сон" not in update.message.text and
+                            update.message.reply_markup):
+                            try:
+                                print(f"🔍 DEBUG: Убираем кнопки из сообщения: {update.message.text[:100]}...")
+                                await update.message.edit_reply_markup(reply_markup=None)
+                                break
+                            except Exception as e:
+                                print(f"🔍 DEBUG: Не удалось убрать кнопки из сообщения: {e}")
+                                continue
+                except Exception as e:
+                    print(f"🔍 DEBUG: Не удалось получить updates: {e}")
+                    # Fallback: просто убираем кнопки из текущего сообщения
+                    pass
                             
             except Exception as e:
                 print(f"🔍 DEBUG: Не удалось убрать кнопки: {e}")
@@ -332,24 +344,32 @@ async def perform_astrological_analysis(update, context, pending_dream, source_t
                     await query.message.edit_reply_markup(reply_markup=None)
                 
                 # Также убираем кнопки из исходного сообщения с обычным толкованием
-                # Ищем сообщение с исходным толкованием (предыдущее сообщение)
-                chat_history = await context.bot.get_chat_history(chat_id, limit=10)
-                buttons_removed = 0
-                for msg in chat_history:
-                    if (msg.text and 
-                        msg.text != astrological_reply and 
-                        "🔮 Размышляю над астрологическим" not in msg.text and
-                        "Когда тебе приснился этот сон" not in msg.text and
-                        msg.reply_markup):
-                        try:
-                            print(f"🔍 DEBUG: Убираем кнопки из сообщения: {msg.text[:100]}...")
-                            await msg.edit_reply_markup(reply_markup=None)
-                            buttons_removed += 1
-                            if buttons_removed >= 2:  # Убираем кнопки из 2 сообщений
-                                break
-                        except Exception as e:
-                            print(f"🔍 DEBUG: Не удалось убрать кнопки из сообщения: {e}")
-                            continue
+                # Используем простой подход - убираем кнопки из всех сообщений в чате
+                # Получаем последние сообщения через getUpdates
+                try:
+                    updates = await context.bot.get_updates(offset=-1, limit=10)
+                    buttons_removed = 0
+                    for update in updates:
+                        if (update.message and 
+                            update.message.chat.id == int(chat_id) and
+                            update.message.text and 
+                            update.message.text != astrological_reply and 
+                            "🔮 Размышляю над астрологическим" not in update.message.text and
+                            "Когда тебе приснился этот сон" not in update.message.text and
+                            update.message.reply_markup):
+                            try:
+                                print(f"🔍 DEBUG: Убираем кнопки из сообщения: {update.message.text[:100]}...")
+                                await update.message.edit_reply_markup(reply_markup=None)
+                                buttons_removed += 1
+                                if buttons_removed >= 2:  # Убираем кнопки из 2 сообщений
+                                    break
+                            except Exception as e:
+                                print(f"🔍 DEBUG: Не удалось убрать кнопки из сообщения: {e}")
+                                continue
+                except Exception as e:
+                    print(f"🔍 DEBUG: Не удалось получить updates: {e}")
+                    # Fallback: просто убираем кнопки из текущего сообщения
+                    pass
             except Exception as e:
                 print(f"🔍 DEBUG: Не удалось убрать кнопки из исходного сообщения: {e}")
                 pass  # Игнорируем ошибки при редактировании
@@ -519,17 +539,29 @@ async def perform_astrological_analysis_from_date_input(update, context, pending
             
             # Убираем кнопки из исходного сообщения с толкованием
             try:
-                # Ищем сообщение с исходным толкованием (предыдущее сообщение)
-                chat_history = await context.bot.get_chat_history(chat_id, limit=10)
-                for msg in chat_history:
-                    if (msg.text and 
-                        msg.text != astrological_reply and 
-                        "🔮 Размышляю над астрологическим" not in msg.text and
-                        "Когда тебе приснился этот сон" not in msg.text):
-                        if msg.reply_markup:
-                            print(f"🔍 DEBUG: Убираем кнопки из сообщения: {msg.text[:100]}...")
-                            await msg.edit_reply_markup(reply_markup=None)
-                            break
+                # Используем простой подход - убираем кнопки из всех сообщений в чате
+                # Получаем последние сообщения через getUpdates
+                try:
+                    updates = await context.bot.get_updates(offset=-1, limit=10)
+                    for update in updates:
+                        if (update.message and 
+                            update.message.chat.id == int(chat_id) and
+                            update.message.text and 
+                            update.message.text != astrological_reply and 
+                            "🔮 Размышляю над астрологическим" not in update.message.text and
+                            "Когда тебе приснился этот сон" not in update.message.text and
+                            update.message.reply_markup):
+                            try:
+                                print(f"🔍 DEBUG: Убираем кнопки из сообщения: {update.message.text[:100]}...")
+                                await update.message.edit_reply_markup(reply_markup=None)
+                                break
+                            except Exception as e:
+                                print(f"🔍 DEBUG: Не удалось убрать кнопки из сообщения: {e}")
+                                continue
+                except Exception as e:
+                    print(f"🔍 DEBUG: Не удалось получить updates: {e}")
+                    # Fallback: просто убираем кнопки из текущего сообщения
+                    pass
             except Exception as e:
                 print(f"🔍 DEBUG: Не удалось убрать кнопки из исходного сообщения: {e}")
                 pass
