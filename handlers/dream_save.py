@@ -2,6 +2,7 @@
 Обработчики для сохранения снов в дневник
 """
 import logging
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from core.utils import cleanup_astrological_interface, cleanup_astrological_interface_by_ids, remove_message_buttons_by_id
 from core.error_handler import handle_errors, validate_pending_dream, safe_callback_data_split, DatabaseError
 
@@ -49,11 +50,14 @@ async def handle_save_dream_callback(update, context, callback_data):
     # Показываем подтверждение
     await query.answer(save_message)
     
-    # Убираем кнопки из всех сообщений с толкованием и удаляем сообщение с выбором даты
-    await cleanup_interface_after_save(context, chat_id, query.message.text, query.message.message_id)
+    # Убираем кнопки - логика зависит от наличия астрологического толкования
+    await cleanup_interface_after_save(context, chat_id, query.message.text, query.message.message_id, has_astrological)
     
-    # Очищаем временные данные
-    db.delete_pending_dream(chat_id)
+    # Очищаем временные данные только если есть астрологическое толкование
+    # Если нет - оставляем pending_dream для возможного создания астрологического толкования
+    if has_astrological:
+        db.delete_pending_dream(chat_id)
+        logger.info(f"🔍 DEBUG: Удален pending_dream после сохранения с астрологическим толкованием")
 
 
 async def save_dream_to_diary(db, chat_id, pending_dream, source_type, has_astrological):
@@ -109,7 +113,7 @@ def _get_save_confirmation_message(has_astrological):
         return "✅ Сон сохранен в дневник!"
 
 
-async def cleanup_interface_after_save(context, chat_id, current_message_text, current_message_id):
+async def cleanup_interface_after_save(context, chat_id, current_message_text, current_message_id, has_astrological):
     """
     Очищает интерфейс после сохранения сна
     
@@ -118,28 +122,64 @@ async def cleanup_interface_after_save(context, chat_id, current_message_text, c
         chat_id: ID чата
         current_message_text: Текст текущего сообщения
         current_message_id: ID текущего сообщения
+        has_astrological: Есть ли астрологическое толкование
     """
     try:
-        # Убираем кнопки из текущего сообщения
-        await remove_message_buttons_by_id(context, chat_id, current_message_id)
-        
-        # Получаем ID других сообщений из context для очистки
-        dream_interpretation_msg_id = context.user_data.get('dream_interpretation_msg_id')
-        date_message_id = context.user_data.get('date_selection_msg_id')
-        
-        if dream_interpretation_msg_id or date_message_id:
-            # Используем надежный метод с ID сообщений
-            await cleanup_astrological_interface_by_ids(context, chat_id, dream_interpretation_msg_id, date_message_id)
+        if has_astrological:
+            # Если есть астрологическое толкование - убираем кнопки из ВСЕХ сообщений
+            logger.info(f"🔍 DEBUG: Есть астрологическое толкование - убираем все кнопки")
+            
+            # Убираем кнопки из текущего сообщения (астрологическое толкование)
+            await remove_message_buttons_by_id(context, chat_id, current_message_id)
+            
+            # Получаем ID других сообщений из context для очистки
+            dream_interpretation_msg_id = context.user_data.get('dream_interpretation_msg_id')
+            date_message_id = context.user_data.get('date_selection_msg_id')
+            
+            if dream_interpretation_msg_id or date_message_id:
+                # Используем надежный метод с ID сообщений
+                await cleanup_astrological_interface_by_ids(context, chat_id, dream_interpretation_msg_id, date_message_id)
+            else:
+                # Fallback к старому методу
+                await cleanup_astrological_interface(context, chat_id, current_message_text)
+            
+            # Очищаем сохраненные ID из context
+            context.user_data.pop('dream_interpretation_msg_id', None)
+            context.user_data.pop('date_selection_msg_id', None)
+            context.user_data.pop('original_message_id', None)
+            
         else:
-            # Fallback к старому методу
-            await cleanup_astrological_interface(context, chat_id, current_message_text)
+            # Если НЕТ астрологического толкования - убираем только кнопку "Сохранить" из исходного сообщения
+            logger.info(f"🔍 DEBUG: Нет астрологического толкования - убираем только кнопку сохранения")
+            
+            # Заменяем кнопки в исходном сообщении, оставляя только кнопку "Астрологическое толкование"
+            dream_interpretation_msg_id = context.user_data.get('dream_interpretation_msg_id')
+            
+            if dream_interpretation_msg_id:
+                # Создаем новую клавиатуру только с кнопкой астрологического толкования
+                from core.database import db
+                
+                # Получаем source_type из pending_dream для создания правильного callback_data
+                pending_dream = db.get_pending_dream(chat_id)
+                if pending_dream:
+                    source_type = pending_dream.get('source_type', 'text')
+                    new_keyboard = InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🔮 Астрологическое толкование", callback_data=f"astrological:{source_type}")]
+                    ])
+                    
+                    try:
+                        await context.bot.edit_message_reply_markup(
+                            chat_id=chat_id,
+                            message_id=dream_interpretation_msg_id,
+                            reply_markup=new_keyboard
+                        )
+                        logger.info(f"🔍 DEBUG: Заменили кнопки в сообщении {dream_interpretation_msg_id}")
+                    except Exception as e:
+                        logger.warning(f"🔍 DEBUG: Не удалось заменить кнопки в исходном сообщении: {e}")
+            
+            # НЕ очищаем dream_interpretation_msg_id, так как кнопка астрологического толкования остается активной
         
-        # Очищаем сохраненные ID из context
-        context.user_data.pop('dream_interpretation_msg_id', None)
-        context.user_data.pop('date_selection_msg_id', None)
-        context.user_data.pop('original_message_id', None)
-        
-        logger.info(f"🔍 DEBUG: Интерфейс очищен после сохранения сна")
+        logger.info(f"🔍 DEBUG: Интерфейс очищен после сохранения сна (astrological: {has_astrological})")
         
     except Exception as e:
         logger.error(f"🔍 DEBUG: Не удалось очистить интерфейс после сохранения: {e}")
