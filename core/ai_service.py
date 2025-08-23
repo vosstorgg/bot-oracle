@@ -89,26 +89,7 @@ class AIService:
             # Создаем специальный промпт для астрологического анализа
             date_info = f"Дата сна: {dream_date}" if dream_date else "Дата сна: не указана"
             
-            astrological_prompt = f"""Ты - опытный астролог. Дай АСТРОЛОГИЧЕСКИЙ анализ сна, НЕ повторяя обычное толкование.
-
-{date_info}
-
-СОН ПОЛЬЗОВАТЕЛЯ:
-{dream_text}
-
-ВАЖНО: НЕ повторяй и НЕ дублируй предыдущее толкование. Дай ТОЛЬКО астрологическую информацию.
-
-ИНСТРУКЦИИ:
-1. Используй астрологический подход: планеты, знаки зодиака, дома, аспекты
-2. Свяжи символы сна с астрологическими архетипами
-3. Если указана дата сна, используй её для астрологических расчетов
-4. Будь краток и конкретен
-5. Используй эмодзи для структурирования
-6. Сохрани неформальный тон на 'ты'
-
-Начни ответ сразу с эмодзи 🔮 и продолжай астрологический анализ.
-
-Отвечай на русском языке."""
+            astrological_prompt = f"""PROMPT = "#Role You are an experienced astrologer; #Task Give ONLY an astrological analysis of the dream, without repeating or retelling any previous interpretation; {date_info} USER'S DREAM: {dream_text}; #Rules Use astrological approach: planets, zodiac signs, houses, aspects; link dream symbols with astrological archetypes; if dream date is given, use it; be brief and specific; start with 🔮 and structure analysis with emojis; #Usercontext End by inviting reflection/response; write in Russian using informal 'ты'."""
 
             response = await self.client.chat.completions.create(
                 model=AI_SETTINGS["model"],
