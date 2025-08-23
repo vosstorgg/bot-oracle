@@ -73,6 +73,11 @@ async def main_button_handler(update, context):
         await handle_save_dream_callback(update, context, query.data)
         return
     
+    # Обработчик астрологического толкования
+    if query.data.startswith("astrological:"):
+        await handle_astrological_callback(update, context, query.data)
+        return
+    
     # Обработчики админки
     if query.data.startswith(("admin_", "broadcast_confirm")):
         await handle_admin_callbacks(update, context, query.data)
@@ -128,6 +133,72 @@ async def handle_save_dream_callback(update, context, callback_data):
     except Exception as e:
         await query.answer("❌ Произошла ошибка при сохранении сна.")
         db.log_activity(user, chat_id, "dream_save_error", str(e))
+
+
+async def handle_astrological_callback(update, context, callback_data):
+    """Обработчик кнопки 'Астрологическое толкование'"""
+    query = update.callback_query
+    chat_id = str(query.message.chat_id)
+    user = update.effective_user
+    
+    try:
+        # Получаем данные сна из временного хранилища
+        pending_dream = context.user_data.get('pending_dream')
+        if not pending_dream:
+            await query.answer("❌ Данные сна не найдены. Попробуйте еще раз.")
+            return
+        
+        # Извлекаем source_type из callback_data
+        source_type = callback_data.split(":")[1]
+        
+        # Показываем "размышляет"
+        await query.answer("🔮 Анализирую сон астрологически...")
+        
+        # Отправляем сообщение о начале астрологического анализа
+        thinking_msg = await query.message.reply_text("🔮 Размышляю над астрологическим значением твоего сна...")
+        
+        # Получаем астрологическое толкование
+        from core.ai_service import ai_service
+        astrological_reply = await ai_service.analyze_dream_astrologically(
+            pending_dream['dream_text'], 
+            pending_dream['interpretation'],
+            source_type
+        )
+        
+        # Логируем астрологическое толкование
+        from core.database import db
+        db.log_activity(user, chat_id, "astrological_interpretation", astrological_reply[:300])
+        db.save_message(chat_id, "assistant", astrological_reply)
+        
+        # Определяем тип ответа для создания соответствующей клавиатуры
+        message_type = ai_service.extract_message_type(astrological_reply)
+        
+        if message_type == 'dream':
+            # Для астрологических толкований добавляем кнопку "Сохранить в дневник"
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("📖 Сохранить в дневник снов", callback_data=f"save_dream:astrological_{source_type}")]
+            ])
+            # Обновляем временные данные для астрологического толкования
+            context.user_data['pending_dream'] = {
+                'dream_text': pending_dream['dream_text'],
+                'interpretation': astrological_reply,
+                'source_type': f'astrological_{source_type}'
+            }
+        else:
+            # Для других типов сообщений без кнопок
+            keyboard = None
+        
+        # Отправляем астрологическое толкование
+        if keyboard:
+            await thinking_msg.edit_text(astrological_reply, parse_mode='Markdown', reply_markup=keyboard)
+        else:
+            await thinking_msg.edit_text(astrological_reply, parse_mode='Markdown')
+        
+    except Exception as e:
+        await query.answer("❌ Произошла ошибка при астрологическом анализе.")
+        from core.database import db
+        db.log_activity(user, chat_id, "astrological_error", str(e))
+        await thinking_msg.edit_text(f"❌ Ошибка при астрологическом анализе: {e}")
 
 
 async def main_message_handler(update, context):

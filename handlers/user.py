@@ -140,9 +140,10 @@ async def process_clarification_question(update: Update, context: ContextTypes.D
         message_type = ai_service.extract_message_type(reply)
         
         if message_type == 'dream':
-            # Для толкований снов добавляем кнопку "Сохранить в дневник"
+            # Для толкований снов добавляем две кнопки
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("📖 Сохранить в дневник снов", callback_data="save_dream:clarification")]
+                [InlineKeyboardButton("📖 Сохранить в дневник снов", callback_data="save_dream:clarification")],
+                [InlineKeyboardButton("🔮 Астрологическое толкование", callback_data="astrological:clarification")]
             ])
             # Сохраняем данные сна во временное хранилище для последующего сохранения
             context.user_data['pending_dream'] = {
@@ -268,9 +269,10 @@ async def process_dream_text(update: Update, context: ContextTypes.DEFAULT_TYPE,
     
     # Создаем клавиатуру в зависимости от типа сообщения
     if message_type == 'dream':
-        # Для толкований снов добавляем кнопку "Сохранить в дневник"
+        # Для толкований снов добавляем две кнопки
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📖 Сохранить в дневник снов", callback_data=f"save_dream:{source_type}")]
+            [InlineKeyboardButton("📖 Сохранить в дневник снов", callback_data=f"save_dream:{source_type}")],
+            [InlineKeyboardButton("🔮 Астрологическое толкование", callback_data=f"astrological:{source_type}")]
         ])
         # Сохраняем данные сна во временное хранилище для последующего сохранения
         context.user_data['pending_dream'] = {
