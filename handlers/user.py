@@ -152,8 +152,10 @@ async def process_clarification_question(update: Update, context: ContextTypes.D
                 'source_type': 'clarification'
             }
         else:
-            # Для других типов сообщений используем обычное меню
-            keyboard = MAIN_MENU
+            # Для других типов сообщений используем inline клавиатуру
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")]
+            ])
         
         # Отправляем ответ
         await thinking_msg.edit_text(reply, parse_mode='Markdown', reply_markup=keyboard)
@@ -161,7 +163,11 @@ async def process_clarification_question(update: Update, context: ContextTypes.D
     except Exception as e:
         error_msg = f"❌ Ошибка при ответе на вопрос: {e}"
         db.log_activity(user, chat_id, "clarification_error", str(e))
-        await thinking_msg.edit_text(error_msg, reply_markup=MAIN_MENU)
+        # Для ошибок используем inline клавиатуру
+        error_keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")]
+        ])
+        await thinking_msg.edit_text(error_msg, reply_markup=error_keyboard)
 
 
 async def handle_voice_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -280,8 +286,10 @@ async def process_dream_text(update: Update, context: ContextTypes.DEFAULT_TYPE,
             'source_type': source_type
         }
     else:
-        # Для других типов сообщений используем обычное меню
-        keyboard = MAIN_MENU
+        # Для других типов сообщений используем inline клавиатуру
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Главное меню", callback_data="main_menu")]
+        ])
     
     # Отправляем или редактируем сообщение с результатом
     if message_to_edit:
