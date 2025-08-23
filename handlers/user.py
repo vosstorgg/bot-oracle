@@ -99,8 +99,8 @@ def extract_context_from_bot_response(bot_message: str) -> str:
     # Убираем эмодзи и форматирование
     clean_text = re.sub(r'[🌙❓💭*_`]', '', bot_message)
     
-    # Извлекаем ключевые символы/архетипы (первые 100 символов обычно содержат основу)
-    context = clean_text[:100].strip()
+    # Извлекаем полный контекст толкования для лучшего понимания уточняющих вопросов
+    context = clean_text[:1400].strip()
     
     return f"Previous interpretation context: {context}..."
 
@@ -123,7 +123,7 @@ async def process_clarification_question(update: Update, context: ContextTypes.D
 
 Previous context: {context_summary}
 
-#Instructions: Answer the question thoroughly & warmly. Keep supportive tone. Use ❓ emoji. Be helpful & empathetic. Don't rewrite dream interpretation. Give useful advice if relevant. Russian language, informal 'ты'."""
+#Instructions: Answer the question thoroughly & warmly. Keep supportive tone. Use ❓ emoji. Be helpful & empathetic. Don't rewrite dream interpretation. Give useful advice if relevant. Russian language, informal 'ты'. Use the full context provided to give accurate and relevant answers."""
 
         # Получаем ответ от AI
         reply = await ai_service.analyze_clarification_question(question, clarification_prompt)
