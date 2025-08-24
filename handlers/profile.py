@@ -13,7 +13,7 @@ async def send_start_menu(chat_id, context, user):
     keyboard = [
         [InlineKeyboardButton("🧾 Познакомимся?", callback_data="start_profile")],
         [InlineKeyboardButton("🔮 Что я умею", callback_data="about")],
-                    [InlineKeyboardButton("💌 Подписаться на канал автора", url="https://t.me/N_W_passage")],
+                    [InlineKeyboardButton("💌 Подписаться на канал автора", url="https://t.me/N_W_passage/3")],
         [InlineKeyboardButton("💎 Донат на развитие", callback_data="donate")],
         [InlineKeyboardButton("🌙 Разобрать мой сон", callback_data="start_first_dream")],
         [InlineKeyboardButton("📖 Дневник снов", callback_data="diary_page:0")]

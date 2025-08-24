@@ -98,6 +98,6 @@ PAGINATION = {
 
 # === ССЫЛКИ ===
 LINKS = {
-    "author_channel": "https://t.me/N_W_passage", 
+    "author_channel": "https://t.me/N_W_passage/3", 
     "donation": "https://pay.cloudtips.ru/p/4f1dd4bf"
 }
