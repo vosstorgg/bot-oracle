@@ -16,6 +16,12 @@ def is_admin(chat_id: str) -> bool:
     """Проверка, является ли пользователь администратором"""
     # Преобразуем chat_id в строку для корректного сравнения
     chat_id_str = str(chat_id)
+    
+    # Отладочная информация
+    print(f"🔍 Проверка админки для chat_id: {chat_id_str}")
+    print(f"🔍 Доступные админские ID: {ADMIN_CHAT_IDS}")
+    print(f"🔍 Результат проверки: {chat_id_str in ADMIN_CHAT_IDS}")
+    
     return chat_id_str in ADMIN_CHAT_IDS
 
 
@@ -24,9 +30,15 @@ async def admin_panel_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     chat_id = str(update.effective_chat.id)
     user = update.effective_user
     
+    print(f"🔧 Попытка доступа к админ панели от chat_id: {chat_id}")
+    print(f"🔧 Пользователь: {user.first_name} {user.last_name} (@{user.username})")
+    
     if not is_admin(chat_id):
+        print(f"❌ Отказано в доступе для chat_id: {chat_id}")
         await update.message.reply_text("❌ У вас нет доступа к админ панели.")
         return
+    
+    print(f"✅ Доступ разрешен для chat_id: {chat_id}")
     
     # Получаем статистику
     all_users = db.get_all_users()
